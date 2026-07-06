@@ -1,0 +1,30 @@
+name: Package Worker
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '_worker.js'
+
+permissions:
+  contents: write
+
+jobs:
+  package-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+
+      - name: Package worker file
+        run: |
+          rm -f worker.zip
+          zip -9 worker.zip _worker.js
+
+      - name: Commit packaged worker
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: package worker.zip'
+          file_pattern: worker.zip
