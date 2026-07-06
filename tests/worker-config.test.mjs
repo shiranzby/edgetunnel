@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,7 @@ const md5md5Start = source.indexOf('async function MD5MD5');
 const md5md5End = source.indexOf('\n}', md5md5Start);
 assert.notEqual(md5md5Start, -1);
 assert.notEqual(md5md5End, -1);
-assert.doesNotMatch(source.slice(md5md5Start, md5md5End), /crypto\.subtle\.digest\(['"]MD5['"]/);
+assert.doesNotMatch(source.slice(md5md5Start, md5md5End), /crypto\.subtle\.digest\(['"]MD5['"]\)/);
 assert.match(source, /function MD5十六进制/);
 
 const sanitizedSource = source
@@ -30,6 +30,7 @@ const env = {
   UUID: 'bd14d931-06ff-4ec6-9f02-33cec5bbb9f0',
   ADMIN: 'bd14d931-06ff-4ec6-9f02-33cec5bbb9f0',
   HOST: 'shyvpn.cc.cd',
+  CFIP_DATA_URL: 'https://example.com/cfip.json',
   KV: {
     store: new Map(),
     async get(key) {
@@ -54,7 +55,24 @@ const originalFetchForClash = globalThis.fetch;
 globalThis.fetch = async (input) => {
   const requestUrl = String(input?.url ?? input);
   if (requestUrl.includes('/sub?target=clash')) {
-    return new Response('proxies:\nproxy-groups: []\nrules: []\n', { status: 200 });
+    return new Response(`proxies:
+  - {name: 电信 | 美国 | 63.59m/s, server: 108.162.194.106, port: 443, type: vless}
+  - {name: 联通 | 日本 | 40.00m/s, server: 104.18.1.1, port: 443, type: vless}
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+      - 电信 | 美国 | 63.59m/s
+      - 联通 | 日本 | 40.00m/s
+  - name: 🛑 全球拦截
+    type: select
+    proxies:
+      - REJECT
+rules:
+  - DOMAIN-SUFFIX,example.com,🚀 节点选择
+  - DOMAIN-SUFFIX,ads.example.com,🛑 全球拦截
+  - MATCH,🐟 漏网之鱼
+`, { status: 200 });
   }
   return new Response('ok', { status: 200 });
 };
@@ -70,18 +88,39 @@ globalThis.fetch = originalFetchForClash;
 assert.equal(clashResponse.status, 200);
 assert.match(clashResponse.headers.get('content-type'), /application\/x-yaml/);
 assert.doesNotMatch(clashBody, /<!DOCTYPE html>/i);
+assert.match(clashBody, /name: 优选节点/);
+assert.match(clashBody, /name: 自动优选/);
+assert.match(clashBody, /name: 故障切换/);
+assert.doesNotMatch(clashBody, /🚀 节点选择|🛑 全球拦截|🐟 漏网之鱼/);
+assert.match(clashBody, /DOMAIN-SUFFIX,shyvpn\.cc\.cd,优选节点/);
+assert.match(clashBody, /DOMAIN-SUFFIX,ads\.shyvpn\.cc\.cd,REJECT/);
 
 const originalFetch = globalThis.fetch;
-globalThis.fetch = async () => new Response('104.16.0.0/30', { status: 200 });
+globalThis.fetch = async (input) => {
+  const requestUrl = String(input?.url ?? input);
+  if (requestUrl.includes('cfip.json')) {
+    return new Response(JSON.stringify({
+      nodes: [
+        { line: '电信', country: '美国', speed: '63.59m/s', ip: '108.162.194.106', port: 443 },
+        { line: '联通', country: '日本', speed: '40.00m/s', ip: '104.18.1.1', port: 443 },
+        { line: '移动', country: '新加坡', speed: '30.00m/s', ip: '104.18.1.2', port: 443 },
+      ],
+    }), { status: 200 });
+  }
+  return new Response('104.16.0.0/30', { status: 200 });
+};
 const [preferredNodes, preferredText] = await generatePreferredIPs(
   new Request('https://shyvpn.cc.cd/?cnIspCode=cf'),
   3,
   443,
+  { CFIP_DATA_URL: 'https://example.com/cfip.json' },
 );
 globalThis.fetch = originalFetch;
 
 assert.equal(preferredNodes.length, 3);
 assert.equal(preferredText, preferredNodes.join('\n'));
-assert.match(preferredNodes[0], /^104\.16\.0\.\d:443#CF官方优选1$/);
+assert.equal(preferredNodes[0], '108.162.194.106:443#电信 | 美国 | 63.59m/s');
+assert.equal(preferredNodes[1], '104.18.1.1:443#联通 | 日本 | 40.00m/s');
+assert.doesNotMatch(preferredText, /CF官方优选/);
 
 console.log('worker config tests passed');

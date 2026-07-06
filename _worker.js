@@ -286,7 +286,7 @@ export default {
 						return new Response(JSON.stringify(config_JSON, null, 2), { status: 200, headers: { 'Content-Type': 'application/json' } });
 					} else if (区分大小写访问路径 === 'admin/ADD.txt') {// 处理 admin/ADD.txt 请求，返回本地优选IP
 						let 本地优选IP = await env.KV.get('ADD.txt') || 'null';
-						if (本地优选IP == 'null') 本地优选IP = (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口))[1];
+						if (本地优选IP == 'null') 本地优选IP = (await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口, env))[1];
 						return new Response(本地优选IP, { status: 200, headers: { 'Content-Type': 'text/plain;charset=utf-8', 'asn': request.cf.asn } });
 					} else if (访问路径 === 'admin/cf.json') {// CF配置文件
 						return new Response(JSON.stringify(request.cf, null, 2), { status: 200, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
@@ -353,9 +353,9 @@ export default {
 
 							if (!url.searchParams.has('sub') && config_JSON.优选订阅生成.local) { // 本地生成订阅
 								const 完整优选列表 = config_JSON.优选订阅生成.本地IP库.随机IP ? (
-									await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口)
+									await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口, env)
 								)[0] : await env.KV.get('ADD.txt') ? await 整理成数组(await env.KV.get('ADD.txt')) : (
-									await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口)
+									await 生成随机IP(request, config_JSON.优选订阅生成.本地IP库.随机数量, config_JSON.优选订阅生成.本地IP库.指定端口, env)
 								)[0];
 								const 优选API = [], 优选IP = [], 其他节点 = [];
 								for (const 元素 of 完整优选列表) {
@@ -4314,6 +4314,60 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		nodeLines.splice(insertIndex + 1, 0, ...echOptsLines);
 		return nodeLines;
 	};
+	const YAML字符串 = (value) => JSON.stringify(String(value || ''));
+	const 提取Clash代理名称 = (yaml) => {
+		const proxiesBlock = yaml.match(/^proxies:\s*\n([\s\S]*?)(?=^proxy-groups:\s*$)/m)?.[1] || '';
+		const names = [];
+		for (const match of proxiesBlock.matchAll(/^\s*-\s*\{\s*name:\s*([^,\n}]+)/gm)) {
+			const name = match[1].trim().replace(/^['"]|['"]$/g, '');
+			if (name && !names.includes(name)) names.push(name);
+		}
+		for (const match of proxiesBlock.matchAll(/^\s*-\s+name:\s*(.+)$/gm)) {
+			const name = match[1].trim().replace(/^['"]|['"]$/g, '');
+			if (name && !names.includes(name)) names.push(name);
+		}
+		return names;
+	};
+	const 精简Clash代理组 = (yaml) => {
+		if (!/^proxy-groups:\s*$/m.test(yaml) || !/^rules:\s*$/m.test(yaml)) return yaml;
+		const proxyNames = 提取Clash代理名称(yaml);
+		if (!proxyNames.length) return yaml;
+		const proxyList = proxyNames.map(name => `      - ${YAML字符串(name)}`).join('\n');
+		const proxyGroupBlock = `proxy-groups:
+  - name: 优选节点
+    type: select
+    proxies:
+      - 自动优选
+      - 故障切换
+      - DIRECT
+${proxyList}
+  - name: 自动优选
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies:
+${proxyList}
+  - name: 故障切换
+    type: fallback
+    url: http://www.gstatic.com/generate_204
+    interval: 180
+    proxies:
+${proxyList}`;
+		let patched = yaml.replace(/^proxy-groups:\s*\n[\s\S]*?(?=^rules:\s*$)/m, proxyGroupBlock + '\n');
+		const ruleTargetMap = {
+			'🚀 节点选择': '优选节点',
+			'♻️ 自动选择': '自动优选',
+			'🔯 故障转移': '故障切换',
+			'🔮 负载均衡': '自动优选',
+			'🎯 全球直连': 'DIRECT',
+			'🛑 全球拦截': 'REJECT',
+			'🐟 漏网之鱼': '优选节点',
+			'☁️ CloudFlareCDN': '优选节点',
+		};
+		for (const [oldName, newName] of Object.entries(ruleTargetMap)) patched = patched.replaceAll(oldName, newName);
+		return patched;
+	};
 
 	if (!/^dns:\s*(?:\n|$)/m.test(clash_yaml)) clash_yaml = baseDnsBlock + clash_yaml;
 	if (ECH_SNI && !HOSTS.includes(ECH_SNI)) HOSTS.push(ECH_SNI);
@@ -4322,6 +4376,8 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		const hostsEntries = HOSTS.map(host => `    "${host}": ${ECH_DNS ? ECH_DNS : ''}`).join('\n');
 		clash_yaml = 插入NameserverPolicy(clash_yaml, hostsEntries);
 	}
+
+	clash_yaml = 精简Clash代理组(clash_yaml);
 
 	if (!需要处理ECH && !需要处理gRPC) return clash_yaml;
 
@@ -5246,10 +5302,37 @@ function 识别运营商(request) {
 	return 命中运营商 || ASN运营商映射[String(cf?.asn || '')] || 'cf';
 }
 
-async function 生成随机IP(request, count = 16, 指定端口 = -1) {
+async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) {
 	const url = new URL(request.url);
 	const 查询参数运营商 = String(url.searchParams.get('cnIspCode') || '').toLowerCase();
 	const 运营商文件标识 = ['ct', 'cu', 'cmcc', 'cf'].includes(查询参数运营商) ? 查询参数运营商 : 识别运营商(request);
+	const 格式化优选节点名称 = (node, index) => {
+		const line = String(node.line || '').trim();
+		const country = String(node.country || node.displayRegion || '').trim();
+		const speed = String(node.speed || '').trim();
+		const parts = [line, country, speed].filter(Boolean);
+		return parts.length ? parts.join(' | ') : `优选节点${index + 1}`;
+	};
+	const 读取测速优选IP = async () => {
+		const dataURL = env.CFIP_DATA_URL || 'https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip.json';
+		try {
+			const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-CFIP-Loader/1.0' } });
+			if (!response.ok) return [];
+			const payload = await response.json();
+			const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
+			return nodes
+				.filter(node => node && node.ip && !String(node.ip).includes(':'))
+				.slice(0, Math.max(1, Number(count) || 16))
+				.map((node, index) => {
+					const port = 指定端口 === -1 ? (node.port || 443) : 指定端口;
+					return `${node.ip}:${port}#${格式化优选节点名称(node, index)}`;
+				});
+		} catch {
+			return [];
+		}
+	};
+	const 测速优选IP = await 读取测速优选IP();
+	if (测速优选IP.length > 0) return [测速优选IP, 测速优选IP.join('\n')];
 	const 运营商名称映射 = {
 		cmcc: 'CF移动优选',
 		cu: 'CF联通优选',
