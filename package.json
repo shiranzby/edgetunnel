@@ -1,10 +1,13 @@
-﻿{
-  "name": "shy-edgetunnel",
+{
+  "name": "shycfvpn",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/worker-config.test.mjs",
-    "update:cfip": "node scripts/update-cfip-data.mjs"
+    "deploy": "wrangler deploy",
+    "test": "node tests/worker-config.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.107.0"
   }
 }
