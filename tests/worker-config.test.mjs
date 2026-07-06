@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const source = await readFile(new URL('../worker.js', import.meta.url), 'utf8');
+const source = await readFile(new URL('../_worker.js', import.meta.url), 'utf8');
 
 const md5md5Start = source.indexOf('async function MD5MD5');
 const md5md5End = source.indexOf('\n}', md5md5Start);
@@ -30,6 +30,15 @@ const env = {
   UUID: 'bd14d931-06ff-4ec6-9f02-33cec5bbb9f0',
   ADMIN: 'bd14d931-06ff-4ec6-9f02-33cec5bbb9f0',
   HOST: 'shyvpn.cc.cd',
+  KV: {
+    store: new Map(),
+    async get(key) {
+      return this.store.get(key) ?? null;
+    },
+    async put(key, value) {
+      this.store.set(key, value);
+    },
+  },
 };
 
 const request = new Request('https://shyvpn.cc.cd/version?uuid=bd14d931-06ff-4ec6-9f02-33cec5bbb9f0', {
@@ -40,6 +49,27 @@ Object.defineProperty(request, 'cf', { value: { colo: 'HKG', asn: 0, asOrganizat
 const response = await workerDefault.fetch(request, env, { waitUntil() {} });
 assert.equal(response.status, 200);
 assert.deepEqual(await response.json(), { Version: 20260617014121 });
+
+const originalFetchForClash = globalThis.fetch;
+globalThis.fetch = async (input) => {
+  const requestUrl = String(input?.url ?? input);
+  if (requestUrl.includes('/sub?target=clash')) {
+    return new Response('proxies:\nproxy-groups: []\nrules: []\n', { status: 200 });
+  }
+  return new Response('ok', { status: 200 });
+};
+
+const clashRequest = new Request('https://shyvpn.cc.cd/clash', {
+  headers: { 'User-Agent': 'Sparkle/1.26 mihomo/1.19.20' },
+});
+Object.defineProperty(clashRequest, 'cf', { value: { colo: 'HKG', asn: 0, asOrganization: 'Test' } });
+const clashResponse = await workerDefault.fetch(clashRequest, env, { waitUntil() {} });
+const clashBody = await clashResponse.text();
+globalThis.fetch = originalFetchForClash;
+
+assert.equal(clashResponse.status, 200);
+assert.match(clashResponse.headers.get('content-type'), /application\/x-yaml/);
+assert.doesNotMatch(clashBody, /<!DOCTYPE html>/i);
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async () => new Response('104.16.0.0/30', { status: 200 });
