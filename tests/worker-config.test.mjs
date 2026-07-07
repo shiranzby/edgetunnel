@@ -96,16 +96,18 @@ globalThis.fetch = originalFetchForClash;
 assert.equal(clashResponse.status, 200);
 assert.match(clashResponse.headers.get('content-type'), /application\/x-yaml/);
 assert.doesNotMatch(clashBody, /<!DOCTYPE html>/i);
-assert.match(clashBody, /name: 优选节点/);
+assert.match(clashBody, /name: 节点选择/);
+assert.match(clashBody, /name: 自动优选/);
 assert.match(clashBody, /name: 🇭🇰 \| 香港节点/);
 assert.match(clashBody, /name: 🇯🇵 \| 日本节点/);
 assert.match(clashBody, /name: 🇺🇸 \| 美国节点/);
 assert.match(clashBody, /name: 故障切换/);
-assert.match(clashBody, /name: 优选节点\n    type: url-test/);
-assert.doesNotMatch(clashBody, /name: 自动优选/);
+assert.match(clashBody, /name: 节点选择\n    type: select/);
+assert.match(clashBody, /name: 自动优选\n    type: url-test/);
+assert.doesNotMatch(clashBody, /name: 优选节点/);
 assert.doesNotMatch(clashBody, /美国圣何塞|美国丹佛|日本东京\n/);
 assert.doesNotMatch(clashBody, /🚀 节点选择|🛑 全球拦截|🐟 漏网之鱼/);
-assert.match(clashBody, /DOMAIN-SUFFIX,shyvpn\.cc\.cd,优选节点/);
+assert.match(clashBody, /DOMAIN-SUFFIX,shyvpn\.cc\.cd,节点选择/);
 assert.match(clashBody, /DOMAIN-SUFFIX,ads\.shyvpn\.cc\.cd,REJECT/);
 
 const originalFetch = globalThis.fetch;
@@ -137,4 +139,5 @@ assert.equal(preferredNodes[1], '104.18.1.1:443#联通 | 日本 | 40.00m/s');
 assert.doesNotMatch(preferredText, /CF官方优选/);
 
 console.log('worker config tests passed');
+
 

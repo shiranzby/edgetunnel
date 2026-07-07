@@ -4526,7 +4526,6 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 			seenName.add(name);
 			return true;
 		});
-		const 优选节点 = 动态节点.slice(0, 30);
 		const 全球节点 = [];
 		const 国家计数 = new Map();
 		for (const node of 动态节点) {
@@ -4550,7 +4549,7 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 			if (!国家节点Map.has(node.country)) 国家节点Map.set(node.country, []);
 			国家节点Map.get(node.country).push(node);
 		}
-		const 已入核心 = new Set([...优选节点, ...全球节点, ...[...国家节点Map.values()].flat()].map(node => node.name));
+		const 已入核心 = new Set([...全球节点, ...[...国家节点Map.values()].flat()].map(node => node.name));
 		const 备用节点 = [...国家溢出节点, ...动态节点.filter(node => !已入核心.has(node.name))];
 		const listLines = (names) => names.length ? names.map(name => `      - ${YAML字符串(name)}`).join('\n') : '      - DIRECT';
 		const selectLines = (nodes, extra = true) => {
@@ -4564,6 +4563,19 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 			const names = uniqueNames(nodes.length ? nodes : 动态节点);
 			return listLines(names);
 		};
+		const 自动优选国家上限 = new Map([
+			['日本', 20],
+			['新加坡', 20],
+			['美国', 20],
+			['德国', 10],
+			['荷兰', 10],
+			['韩国', 10],
+			['中国台湾', 10],
+		]);
+		const 自动优选节点 = [
+			...固定香港节点,
+			...国家分组顺序.flatMap(country => (国家节点Map.get(country) || []).slice(0, 自动优选国家上限.get(country) || 10)),
+		];
 		const proxiesBlock = `proxies:\n${全部节点.map(node => node.text).join('\n')}\n`;
 		yaml = yaml.replace(/^proxies:\s*\n[\s\S]*?(?=^proxy-groups:\s*$)/m, proxiesBlock);
 		const 国家组块 = 国家分组顺序
@@ -4577,17 +4589,26 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 ${selectLines(nodes)}`;
 			}).join('\n');
 		const proxyGroupBlock = `proxy-groups:
-  - name: 优选节点
+  - name: 节点选择
+    type: select
+    proxies:
+      - 自动优选
+      - 故障切换
+      - 全球节点
+      - 🇭🇰 | 香港节点
+${国家组块 ? 国家分组顺序.filter(country => 国家节点Map.has(country)).map(country => `      - ${国家节点Map.get(country)[0]?.groupName || `${country}节点`}`).join('\n') + '\n' : ''}      - 备用节点
+      - DIRECT
+  - name: 自动优选
     type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 300
-    tolerance: 50
+    tolerance: 30
     proxies:
-${testLines(优选节点)}
+${testLines(自动优选节点)}
   - name: 全球节点
     type: select
     proxies:
-      - 优选节点
+      - 自动优选
       - 故障切换
       - DIRECT
 ${listLines(全球节点.map(node => node.name))}
@@ -4604,21 +4625,21 @@ ${selectLines(备用节点)}
     url: http://www.gstatic.com/generate_204
     interval: 180
     proxies:
-${testLines(全球节点.length ? 全球节点 : 优选节点)}`;
+${testLines(全球节点.length ? 全球节点 : 自动优选节点)}`;
 		let patched = yaml.replace(/^proxy-groups:\s*\n[\s\S]*?(?=^rules:\s*$)/m, proxyGroupBlock + '\n');
 		const ruleTargetMap = {
-			'🚀 节点选择': '优选节点',
-			'♻️ 自动选择': '优选节点',
+			'🚀 节点选择': '节点选择',
+			'♻️ 自动选择': '自动优选',
 			'🔯 故障转移': '故障切换',
-			'🔮 负载均衡': '优选节点',
-			'🌍 国外媒体': '优选节点',
+			'🔮 负载均衡': '自动优选',
+			'🌍 国外媒体': '节点选择',
 			'🌏 国内媒体': 'DIRECT',
 			'🌐 全球节点': '全球节点',
 			'🇭🇰 香港节点': '🇭🇰 | 香港节点',
 			'🎯 全球直连': 'DIRECT',
 			'🛑 全球拦截': 'REJECT',
-			'🐟 漏网之鱼': '优选节点',
-			'☁️ CloudFlareCDN': '优选节点',
+			'🐟 漏网之鱼': '节点选择',
+			'☁️ CloudFlareCDN': '节点选择',
 		};
 		for (const [oldName, newName] of Object.entries(ruleTargetMap)) patched = patched.replaceAll(oldName, newName);
 		return patched;
