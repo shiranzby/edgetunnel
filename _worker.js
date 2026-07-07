@@ -462,9 +462,12 @@ export default {
 								if (response.ok) {
 									订阅内容 = await response.text();
 									if (url.searchParams.has('surge') || ua.includes('surge')) 订阅内容 = Surge订阅配置文件热补丁(订阅内容, url.protocol + '//' + url.host + '/sub?token=' + 订阅TOKEN + '&surge', config_JSON);
+								} else if (订阅类型 === 'clash') {
+									订阅内容 = await 生成内置Clash订阅配置(request, config_JSON, env);
 								} else return new Response('订阅转换后端异常：' + response.statusText, { status: response.status });
 							} catch (error) {
-								return new Response('订阅转换后端异常：' + error.message, { status: 403 });
+								if (订阅类型 === 'clash') 订阅内容 = await 生成内置Clash订阅配置(request, config_JSON, env);
+								else return new Response('订阅转换后端异常：' + error.message, { status: 403 });
 							}
 						}
 
@@ -4178,6 +4181,41 @@ function log(...args) {
 	if (调试日志打印) console.log(...args);
 }
 
+async function 生成内置Clash订阅配置(request, config_JSON = {}, env = {}) {
+	const host = config_JSON.HOST || new URL(request.url).host;
+	const uuid = config_JSON.UUID || '00000000-0000-4000-8000-000000000000';
+	const 本地IP库 = config_JSON.优选订阅生成?.本地IP库 || {};
+	const 优选列表 = 本地IP库.随机IP
+		? (await 生成随机IP(request, 本地IP库.随机数量 || 128, 本地IP库.指定端口 ?? -1, env))[0]
+		: await env?.KV?.get?.('ADD.txt') ? await 整理成数组(await env.KV.get('ADD.txt')) : (await 生成随机IP(request, 128, -1, env))[0];
+	const { type: 传输协议, 路径字段名, 域名字段名 } = 获取传输协议配置(config_JSON);
+	const 节点路径 = 获取传输路径参数值(config_JSON, config_JSON.完整节点路径 || '/');
+	const 节点 = [];
+	for (const 原始地址 of 优选列表 || []) {
+		const 地址 = String(原始地址 || '').trim();
+		if (!地址 || 地址.toLowerCase().startsWith('sub://') || 地址.toLowerCase().includes('://')) continue;
+		const match = 地址.match(/^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/);
+		if (!match) continue;
+		const server = match[1].replace(/^\[|\]$/g, '');
+		const name = match[3] || server;
+		节点.push({
+			name,
+			text: `  - {name: ${JSON.stringify(name)}, server: ${server}, port: ${Number(match[2] || 443)}, type: vless, uuid: ${uuid}, tls: true, skip-cert-verify: ${Boolean(config_JSON.跳过证书验证)}, servername: ${host}, client-fingerprint: ${config_JSON.Fingerprint || 'chrome'}, network: ${传输协议}, ${路径字段名}: ${JSON.stringify(节点路径)}, ${域名字段名}: ${host}}`
+		});
+	}
+	return `proxies:
+${节点.map(node => node.text).join('\n')}
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    proxies:
+${节点.length ? 节点.map(node => `      - ${JSON.stringify(node.name)}`).join('\n') : '      - DIRECT'}
+rules:
+  - DOMAIN-SUFFIX,${host},🚀 节点选择
+  - MATCH,🚀 节点选择
+`;
+}
+
 async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}) {
 	const uuid = config_JSON?.UUID || null;
 	const ECH启用 = Boolean(config_JSON?.ECH);
@@ -4392,22 +4430,22 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 		return { ip: 地址端口.slice(0, 端口位置), port: 地址端口.slice(端口位置 + 1) || '443', remark: 备注 };
 	});
 	const 地区元信息 = [
-		{ key: '中国香港', flag: '🇭🇰', country: '中国香港', patterns: [/中国香港|香港|HKG/i] },
-		{ key: '日本东京', flag: '🇯🇵', country: '日本', patterns: [/日本东京|NRT/i] },
-		{ key: '日本大阪', flag: '🇯🇵', country: '日本', patterns: [/日本大阪|KIX/i] },
-		{ key: '韩国首尔', flag: '🇰🇷', country: '韩国', patterns: [/韩国首尔|ICN/i] },
-		{ key: '新加坡', flag: '🇸🇬', country: '新加坡', patterns: [/新加坡|SIN/i] },
-		{ key: '中国台湾台北', flag: '🇨🇳', country: '中国台湾', patterns: [/中国台湾|台湾|台北|TPE/i] },
-		{ key: '美国圣何塞', flag: '🇺🇸', country: '美国', patterns: [/美国圣何塞|圣何塞|SJC/i] },
-		{ key: '美国洛杉矶', flag: '🇺🇸', country: '美国', patterns: [/美国洛杉矶|洛杉矶|LAX/i] },
-		{ key: '美国西雅图', flag: '🇺🇸', country: '美国', patterns: [/美国西雅图|西雅图|SEA/i] },
-		{ key: '美国丹佛', flag: '🇺🇸', country: '美国', patterns: [/美国丹佛|丹佛|DEN/i] },
-		{ key: '美国阿什本', flag: '🇺🇸', country: '美国', patterns: [/美国阿什本|阿什本|IAD/i] },
-		{ key: '德国法兰克福', flag: '🇩🇪', country: '德国', patterns: [/德国法兰克福|法兰克福|FRA/i] },
-		{ key: '荷兰阿姆斯特丹', flag: '🇳🇱', country: '荷兰', patterns: [/荷兰阿姆斯特丹|阿姆斯特丹|AMS/i] },
+		{ key: '中国香港', flag: '🇭🇰', country: '香港', groupName: '🇭🇰 | 香港节点', patterns: [/中国香港|香港|HKG/i] },
+		{ key: '日本东京', flag: '🇯🇵', country: '日本', groupName: '🇯🇵 | 日本节点', patterns: [/日本东京|NRT/i] },
+		{ key: '日本大阪', flag: '🇯🇵', country: '日本', groupName: '🇯🇵 | 日本节点', patterns: [/日本大阪|KIX/i] },
+		{ key: '韩国首尔', flag: '🇰🇷', country: '韩国', groupName: '🇰🇷 | 韩国节点', patterns: [/韩国首尔|ICN/i] },
+		{ key: '新加坡', flag: '🇸🇬', country: '新加坡', groupName: '🇸🇬 | 新加坡节点', patterns: [/新加坡|SIN/i] },
+		{ key: '中国台湾台北', flag: '🇨🇳', country: '中国台湾', groupName: '🇨🇳 | 台湾节点', patterns: [/中国台湾|台湾|台北|TPE/i] },
+		{ key: '美国圣何塞', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国圣何塞|圣何塞|SJC/i] },
+		{ key: '美国洛杉矶', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国洛杉矶|洛杉矶|LAX/i] },
+		{ key: '美国西雅图', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国西雅图|西雅图|SEA/i] },
+		{ key: '美国丹佛', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国丹佛|丹佛|DEN/i] },
+		{ key: '美国阿什本', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国阿什本|阿什本|IAD/i] },
+		{ key: '德国法兰克福', flag: '🇩🇪', country: '德国', groupName: '🇩🇪 | 德国节点', patterns: [/德国法兰克福|法兰克福|FRA/i] },
+		{ key: '荷兰阿姆斯特丹', flag: '🇳🇱', country: '荷兰', groupName: '🇳🇱 | 荷兰节点', patterns: [/荷兰阿姆斯特丹|阿姆斯特丹|AMS/i] },
 	];
-	const 地区分组顺序 = ['日本东京', '新加坡', '美国圣何塞', '德国法兰克福', '荷兰阿姆斯特丹', '日本大阪', '韩国首尔', '中国台湾台北', '美国洛杉矶', '美国西雅图', '美国丹佛', '美国阿什本'];
-	const 匹配地区 = (name = '') => 地区元信息.find(meta => meta.patterns.some(pattern => pattern.test(name))) || { key: '其他地区', flag: '🌐', country: '其他', patterns: [] };
+	const 国家分组顺序 = ['日本', '新加坡', '美国', '德国', '荷兰', '韩国', '中国台湾'];
+	const 匹配地区 = (name = '') => 地区元信息.find(meta => meta.patterns.some(pattern => pattern.test(name))) || { key: '其他地区', flag: '🌐', country: '其他', groupName: '🌐 | 其他节点', patterns: [] };
 	const 按IP匹配地区 = (server, fallbackName = '') => {
 		const info = 缓存测速节点映射 instanceof Map ? 缓存测速节点映射.get(String(server || '')) : null;
 		return 匹配地区([info?.regionName, info?.colo, fallbackName].filter(Boolean).join(' '));
@@ -4425,7 +4463,7 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 		const pattern = new RegExp(`(\\b${field}:\\s*)([^,}\\n]+)`);
 		return pattern.test(text) ? text.replace(pattern, `$1${value}`) : text.replace(/\}(\s*)$/, `, ${field}: ${value}}$1`);
 	};
-	const 生成序号名称 = (meta, index) => `${meta.flag} | ${meta.key} | ${String(index).padStart(2, '0')}`;
+	const 生成序号名称 = (meta, index) => `${meta.flag} | ${meta.country}节点 | ${String(index).padStart(2, '0')}`;
 	const 提取Clash代理节点 = (yaml) => {
 		const proxiesBlock = yaml.match(/^proxies:\s*\n([\s\S]*?)(?=^proxy-groups:\s*$)/m)?.[1] || '';
 		const lines = proxiesBlock.split('\n');
@@ -4468,20 +4506,18 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 		if (!/^proxy-groups:\s*$/m.test(yaml) || !/^rules:\s*$/m.test(yaml)) return yaml;
 		const 原始节点 = 提取Clash代理节点(yaml);
 		if (!原始节点.length) return yaml;
-		const 动态地区计数 = new Map();
+		const 动态国家计数 = new Map([['香港', 固定香港优选节点.length]]);
 		const 动态节点 = 原始节点.map((node, index) => {
 			const meta = 按IP匹配地区(node.server, node.name);
-			const baseIndex = meta.key === '中国香港' ? 固定香港优选节点.length : 0;
-			const regionCount = (动态地区计数.get(meta.key) || 0) + 1;
-			动态地区计数.set(meta.key, regionCount);
-			const nextIndex = baseIndex + regionCount;
+			const nextIndex = (动态国家计数.get(meta.country) || 0) + 1;
+			动态国家计数.set(meta.country, nextIndex);
 			const newName = 生成序号名称(meta, nextIndex);
-			return { ...node, text: 替换字段(node.text, 'name', newName), name: newName, region: meta.key, country: meta.country, order: index };
+			return { ...node, text: 替换字段(node.text, 'name', newName), name: newName, region: meta.key, country: meta.country, groupName: meta.groupName, order: index };
 		});
 		const 香港Meta = 地区元信息[0];
 		const 固定香港节点 = 固定香港优选节点.map((item, index) => {
-			const name = 生成序号名称(香港Meta, index + 1);
-			return { text: 创建固定香港节点文本(动态节点[0]?.text, item, name), name, region: '中国香港', country: '中国香港', fixed: true };
+			const name = `🇭🇰 | 中国香港 | ${String(index + 1).padStart(2, '0')}`;
+			return { text: 创建固定香港节点文本(动态节点[0]?.text, item, name), name, region: '中国香港', country: '香港', groupName: 香港Meta.groupName, fixed: true };
 		});
 		const 全部节点 = [...固定香港节点, ...动态节点];
 		const seenName = new Set();
@@ -4499,14 +4535,23 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 			全球节点.push(node);
 			国家计数.set(node.country, count + 1);
 		}
-		const 已入核心 = new Set([...优选节点, ...全球节点].map(node => node.name));
-		const 备用节点 = 动态节点.filter(node => !已入核心.has(node.name));
-		const 地区节点Map = new Map();
+		const 国家节点Map = new Map();
+		const 国家地区计数 = new Map();
+		const 国家溢出节点 = [];
 		for (const node of 动态节点) {
-			if (node.region === '中国香港') continue;
-			if (!地区节点Map.has(node.region)) 地区节点Map.set(node.region, []);
-			地区节点Map.get(node.region).push(node);
+			if (node.country === '香港') continue;
+			const regionKey = `${node.country}:${node.region}`;
+			const regionCount = 国家地区计数.get(regionKey) || 0;
+			if (regionCount >= 20) {
+				国家溢出节点.push(node);
+				continue;
+			}
+			国家地区计数.set(regionKey, regionCount + 1);
+			if (!国家节点Map.has(node.country)) 国家节点Map.set(node.country, []);
+			国家节点Map.get(node.country).push(node);
 		}
+		const 已入核心 = new Set([...优选节点, ...全球节点, ...[...国家节点Map.values()].flat()].map(node => node.name));
+		const 备用节点 = [...国家溢出节点, ...动态节点.filter(node => !已入核心.has(node.name))];
 		const listLines = (names) => names.length ? names.map(name => `      - ${YAML字符串(name)}`).join('\n') : '      - DIRECT';
 		const selectLines = (nodes, extra = true) => {
 			seenName.clear();
@@ -4521,42 +4566,39 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 		};
 		const proxiesBlock = `proxies:\n${全部节点.map(node => node.text).join('\n')}\n`;
 		yaml = yaml.replace(/^proxies:\s*\n[\s\S]*?(?=^proxy-groups:\s*$)/m, proxiesBlock);
-		const 地区组块 = 地区分组顺序
-			.filter(region => 地区节点Map.has(region))
-			.map(region => `  - name: ${region}
+		const 国家组块 = 国家分组顺序
+			.filter(country => 国家节点Map.has(country))
+			.map(country => {
+				const nodes = 国家节点Map.get(country);
+				const groupName = nodes[0]?.groupName || `${nodes[0]?.flag || '🌐'} | ${country}节点`;
+				return `  - name: ${groupName}
     type: select
     proxies:
-${selectLines(地区节点Map.get(region))}`).join('\n');
+${selectLines(nodes)}`;
+			}).join('\n');
 		const proxyGroupBlock = `proxy-groups:
   - name: 优选节点
-    type: select
-    proxies:
-      - 自动优选
-      - 故障切换
-      - DIRECT
-${listLines(优选节点.map(node => node.name))}
-  - name: 全球节点
-    type: select
-    proxies:
-      - 自动优选
-      - 故障切换
-      - DIRECT
-${listLines(全球节点.map(node => node.name))}
-  - name: 香港节点
-    type: select
-    proxies:
-${selectLines(固定香港节点)}
-${地区组块 ? 地区组块 + '\n' : ''}  - name: 备用节点
-    type: select
-    proxies:
-${selectLines(备用节点)}
-  - name: 自动优选
     type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
     proxies:
 ${testLines(优选节点)}
+  - name: 全球节点
+    type: select
+    proxies:
+      - 优选节点
+      - 故障切换
+      - DIRECT
+${listLines(全球节点.map(node => node.name))}
+  - name: 🇭🇰 | 香港节点
+    type: select
+    proxies:
+${selectLines(固定香港节点)}
+${国家组块 ? 国家组块 + '\n' : ''}  - name: 备用节点
+    type: select
+    proxies:
+${selectLines(备用节点)}
   - name: 故障切换
     type: fallback
     url: http://www.gstatic.com/generate_204
@@ -4566,13 +4608,13 @@ ${testLines(全球节点.length ? 全球节点 : 优选节点)}`;
 		let patched = yaml.replace(/^proxy-groups:\s*\n[\s\S]*?(?=^rules:\s*$)/m, proxyGroupBlock + '\n');
 		const ruleTargetMap = {
 			'🚀 节点选择': '优选节点',
-			'♻️ 自动选择': '自动优选',
+			'♻️ 自动选择': '优选节点',
 			'🔯 故障转移': '故障切换',
-			'🔮 负载均衡': '自动优选',
+			'🔮 负载均衡': '优选节点',
 			'🌍 国外媒体': '优选节点',
 			'🌏 国内媒体': 'DIRECT',
 			'🌐 全球节点': '全球节点',
-			'🇭🇰 香港节点': '香港节点',
+			'🇭🇰 香港节点': '🇭🇰 | 香港节点',
 			'🎯 全球直连': 'DIRECT',
 			'🛑 全球拦截': 'REJECT',
 			'🐟 漏网之鱼': '优选节点',
