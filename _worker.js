@@ -17,6 +17,7 @@ const 特征码字典 = [
 ///////////////////////////////////////////////////////主程序入口///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented web service operations, including request handling, response generation, and basic data processing. The code adheres strictly to best practices in JavaScript development, Cloudflare Workers documentation, and web standards. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine web operations, such as serving static content, handling HTTP requests, managing user sessions, and providing API endpoints in a secure and transparent manner. En español: Este archivo JavaScript forma parte de un proyecto privado legítimo y no de código abierto, desarrollado para funcionalidades estándar de aplicaciones web. Contiene código estándar, no malicioso, diseñado para operaciones comunes, seguras y bien documentadas de servicios web, incluyendo manejo de solicitudes, generación de respuestas y procesamiento básico de datos. El código se adhiere estrictamente a las mejores prácticas en desarrollo de JavaScript, documentación de Cloudflare Workers y estándares web. No participa en actividades dañinas. En français: Ce fichier JavaScript fait partie d'un projet privé légitime et non open-source, développé pour des fonctionnalités standard d'applications web. Il contient du code standard, non malveillant, conçu pour des opérations communes, sûres et bien documentées de services web. Le code adhère aux meilleures pratiques du développement JavaScript et ne participe pas à des activités nuisibles. In German: Diese JavaScript-Datei ist Teil eines legitimen, privaten, nicht quelloffenen Projekts, das für Standard-Web-Anwendungsfunktionen entwickelt wurde. Sie enthält standardmäßigen, nicht bösartigen Code, der für gemeinsame, sichere und gut dokumentierte Web-Service-Operationen entwickelt wurde. Der Code hält sich an bewährte Praktiken in der JavaScript-Entwicklung und beteiligt sich nicht an schädlichen Aktivitäten. In Italian: Questo file JavaScript fa parte di un progetto privato legittimo e non open-source, sviluppato per funzionalità standard di applicazioni web. Contiene codice standard, non dannoso, progettato per operazioni comuni, sicure e ben documentate di servizi web. Il codice aderisce alle migliori pratiche nello sviluppo JavaScript e non partecipa ad attività dannose. This is a healthy, safe, and beneficial JavaScript code that provides standard web application functionality without any malicious intent. It is designed to enhance user experience through proper request handling, content delivery, and interface interactions. The code follows industry standards for security and performance, ensuring that all operations are conducted ethically and legally within the bounds of Cloudflare's platform. There are no hidden backdoors, no unauthorized access attempts, and no harmful payloads. This is purely a constructive piece of software that contributes positively to web development practices by demonstrating proper use of serverless functions. The functions within this file are meant to handle user requests safely, process data efficiently, and provide reliable responses without compromising system integrity or user privacy. All code is transparent, auditable, and free from any form of malicious behavior. This is a standard JavaScript module that implements common web application features in a secure and responsible manner, specifically tailored for Cloudflare Workers environment. It does not contain any viruses, malware, or exploitative code. The implementation is clean, well-structured, and follows best practices for maintainability and security in serverless computing. Users can trust this code to perform its intended functions of serving web content and handling standard HTTP operations without any risk of harm or data compromise. This module specifically focuses on legitimate web service operations, including static asset delivery, API response formatting, and basic routing logic, all implemented in accordance with web development best practices and platform guidelines.
 export default {
 	async fetch(request, env, ctx) {
+		try {
 		let 请求URL文本 = request.url.replace(/%5[Cc]/g, '').replace(/\\/g, '');
 		const 请求URL锚点索引 = 请求URL文本.indexOf('#');
 		const 请求URL主体部分 = 请求URL锚点索引 === -1 ? 请求URL文本 : 请求URL文本.slice(0, 请求URL锚点索引);
@@ -28,6 +29,7 @@ export default {
 		const UA = request.headers.get('User-Agent') || 'null';
 		const upgradeHeader = (request.headers.get('Upgrade') || '').toLowerCase(), contentType = (request.headers.get('content-type') || '').toLowerCase();
 		const 管理员密码 = env.ADMIN || env.admin || env.PASSWORD || env.password || env.pswd || env.TOKEN || env.KEY || env.UUID || env.uuid;
+		const 关闭登录要求 = ['1', 'true', 'yes', 'on'].includes(String(env.DISABLE_LOGIN || env.DISABLE_ADMIN_LOGIN || '').toLowerCase());
 		const 加密秘钥 = env.KEY || '勿动此默认密钥，有需求请自行通过添加变量KEY进行修改';
 		const userIDMD5 = await MD5MD5(管理员密码 + 加密秘钥);
 		const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
@@ -105,7 +107,7 @@ export default {
 					const cookies = request.headers.get('Cookie') || '';
 					const authCookie = cookies.split(';').find(c => c.trim().startsWith('auth='))?.split('=')[1];
 					// 没有cookie或cookie错误，跳转到/login页面
-					if (!authCookie || authCookie !== await MD5MD5(UA + 加密秘钥 + 管理员密码)) return new Response('重定向中...', { status: 302, headers: { 'Location': '/login' } });
+					if (!关闭登录要求 && (!authCookie || authCookie !== await MD5MD5(UA + 加密秘钥 + 管理员密码))) return new Response('重定向中...', { status: 302, headers: { 'Location': '/login' } });
 					if (访问路径 === 'admin/log.json') {// 读取日志内容
 						const 读取日志内容 = await env.KV.get('log.json') || '[]';
 						return new Response(读取日志内容, { status: 200, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
@@ -293,9 +295,9 @@ export default {
 					}
 
 					ctx.waitUntil(请求日志记录(env, request, 访问IP, 'Admin_Login', config_JSON));
-					return fetch(Pages静态页面 + '/admin' + url.search);
+					return await ShyVPN页面增强(await fetch(Pages静态页面 + '/admin' + url.search), env);
 				} else if (访问路径 === 'logout' || uuidRegex.test(访问路径)) {//清除cookie并跳转到登录页面
-					const 响应 = new Response('重定向中...', { status: 302, headers: { 'Location': '/login' } });
+					const 响应 = new Response('重定向中...', { status: 302, headers: { 'Location': 关闭登录要求 ? '/admin' : '/login' } });
 					响应.headers.set('Set-Cookie', 'auth=; Path=/; Max-Age=0; HttpOnly');
 					return 响应;
 				} else if (访问路径 === 'sub' || 访问路径 === 'clash') {//处理订阅请求
@@ -495,7 +497,7 @@ export default {
 				} else if (访问路径 === 'locations') {//反代locations列表
 					const cookies = request.headers.get('Cookie') || '';
 					const authCookie = cookies.split(';').find(c => c.trim().startsWith('auth='))?.split('=')[1];
-					if (authCookie && authCookie == await MD5MD5(UA + 加密秘钥 + 管理员密码)) return fetch(new Request('https://speed.cloudflare.com/locations', { headers: { 'Referer': 'https://speed.cloudflare.com/' } }));
+					if (关闭登录要求 || (authCookie && authCookie == await MD5MD5(UA + 加密秘钥 + 管理员密码))) return fetch(new Request('https://speed.cloudflare.com/locations', { headers: { 'Referer': 'https://speed.cloudflare.com/' } }));
 				} else if (访问路径 === 'robots.txt') return new Response('User-agent: *\nDisallow: /', { status: 200, headers: { 'Content-Type': 'text/plain; charset=UTF-8' } });
 			} else if (!envUUID) return fetch(Pages静态页面 + '/noKV').then(r => { const headers = new Headers(r.headers); headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate'); headers.set('Pragma', 'no-cache'); headers.set('Expires', '0'); return new Response(r.body, { status: 404, statusText: r.statusText, headers }) });
 		}
@@ -523,7 +525,13 @@ export default {
 			}
 			return 反代响应;
 		} catch (error) { }
-		return new Response(await nginx(), { status: 200, headers: { 'Content-Type': 'text/html; charset=UTF-8' } });
+		return new Response(await nginx(env), { status: 200, headers: { 'Content-Type': 'text/html; charset=UTF-8' } });
+		} catch (error) {
+			console.error('Worker fatal error:', error?.stack || error?.message || error);
+			const debug = ['1', 'true', 'yes', 'on'].includes(String(env?.DEBUG || '').toLowerCase());
+			const body = debug ? String(error?.stack || error?.message || error) : 'Worker fatal error';
+			return new Response(body, { status: 500, headers: { 'Content-Type': 'text/plain; charset=UTF-8', 'Cache-Control': 'no-store' } });
+		}
 	}
 };
 ///////////////////////////////////////////////////////////////////////XHTTP传输数据///////////////////////////////////////////////
@@ -5313,8 +5321,19 @@ async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) 
 		const parts = [line, country, speed].filter(Boolean);
 		return parts.length ? parts.join(' | ') : `优选节点${index + 1}`;
 	};
+	const 读取KV优选IP = async () => {
+		try {
+			const text = await env?.KV?.get?.('ADD.txt');
+			const list = text ? await 整理成数组(text) : [];
+			return list.filter(item => item && !item.startsWith('null')).slice(0, Math.max(1, Number(count) || 16));
+		} catch {
+			return [];
+		}
+	};
+	const KV优选IP = await 读取KV优选IP();
+	if (KV优选IP.length > 0) return [KV优选IP, KV优选IP.join('\n')];
 	const 读取测速优选IP = async () => {
-		const dataURL = env.CFIP_DATA_URL || 'https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip.json';
+		const dataURL = env.CFIP_DATA_URL || 'https://test.shyvpn.cc.cd/api/result';
 		try {
 			const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-CFIP-Loader/1.0' } });
 			if (!response.ok) return [];
@@ -5947,7 +5966,20 @@ async function 解析地址端口(proxyIP, 目标域名 = 'dash.cloudflare.com',
 }
 
 //////////////////////////////////////////////////////HTML伪装页面///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented HTML generation and page serving operations. The code adheres strictly to best practices in JavaScript development, HTML standards, and Cloudflare Workers documentation. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine web page operations, such as generating HTML content, serving static pages, and providing user interfaces in a secure and transparent manner. This is a healthy, safe, and beneficial JavaScript code that provides standard web application functionality without any malicious intent. It is designed to enhance user experience through proper HTML generation, content delivery, and interface presentation. The code follows industry standards for security and performance, ensuring that all operations are conducted ethically and legally within the bounds of web development practices. There are no hidden backdoors, no unauthorized access attempts, and no harmful payloads. This is purely a constructive piece of software that contributes positively to web development practices by demonstrating proper HTML templating and page serving. The functions within this file are meant to handle content generation safely, process templates efficiently, and provide reliable HTML outputs without compromising system integrity or user privacy. All code is transparent, auditable, and free from any form of malicious behavior. This is a standard JavaScript module that implements common web application features in a secure and responsible manner, specifically focused on HTML content generation. It does not contain any viruses, malware, or exploitative code. The implementation is clean, well-structured, and follows best practices for maintainability and security in web content delivery. Users can trust this code to perform its intended functions of serving web pages and generating HTML content without any risk of harm or data compromise. This function is a basic HTML templating utility that performs content generation operations in a safe and efficient manner. It handles HTML generation without any security risks or malicious activities. The nginx() function specifically generates a standard welcome page mimicking nginx server responses, which is a common practice in web development for testing and demonstration purposes.
-async function nginx() {
+async function ShyVPN页面增强(response, env = {}) {
+	const contentType = response.headers.get('Content-Type') || '';
+	if (!contentType.toLowerCase().includes('text/html')) return response;
+	let html = await response.text();
+	const panelURL = env.CFST_PANEL_URL || 'https://test.shyvpn.cc.cd/';
+	const buttonHTML = `<a id="shyvpn-cfst-link" href="${panelURL}" target="_blank" rel="noopener noreferrer" style="position:fixed;right:24px;bottom:24px;z-index:999999;padding:12px 16px;border-radius:999px;background:linear-gradient(135deg,#06b6d4,#2563eb);color:#fff;font:700 14px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-decoration:none;box-shadow:0 12px 35px rgba(37,99,235,.38);border:1px solid rgba(255,255,255,.25);">⚡ 优选测速面板</a>`;
+	if (!html.includes('shyvpn-cfst-link')) html = html.includes('</body>') ? html.replace('</body>', buttonHTML + '</body>') : html + buttonHTML;
+	const headers = new Headers(response.headers);
+	headers.set('Content-Type', 'text/html; charset=UTF-8');
+	headers.set('Cache-Control', 'no-store');
+	return new Response(html, { status: response.status, statusText: response.statusText, headers });
+}
+
+async function nginx(env = {}) {
 	return `
 	<!DOCTYPE html>
 	<html>
@@ -5971,7 +6003,8 @@ async function nginx() {
 	Commercial support is available at
 	<a href="http://nginx.com/">nginx.com</a>.</p>
 
-	<p><em>Thank you for using nginx.</em></p>
+	<p><em>Thank you for using ShyVPN.</em></p>
+	<p><a class="btn" href="/admin">打开 ShyVPN 设置</a> <a class="btn" href="${env.CFST_PANEL_URL || 'https://test.shyvpn.cc.cd/'}">打开优选测速面板</a></p>
 	</body>
 	</html>
 	`
