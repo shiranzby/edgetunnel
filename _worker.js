@@ -2,6 +2,7 @@
 let config_JSON, 反代IP = '', 启用SOCKS5反代 = null, 启用SOCKS5全局反代 = false, 我的SOCKS5账号 = '', parsedSocks5Address = {};
 let 缓存SOCKS5白名单 = null, 缓存反代IP, 缓存反代解析数组, 缓存反代数组索引 = 0, 启用反代兜底 = true, 调试日志打印 = false;
 let SOCKS5白名单 = ['*tapecontent.net', '*cloudatacdn.com', '*loadshare.org', '*cdn-centaurus.com', 'scholar.google.com'];
+let 缓存测速节点映射 = new Map(), 缓存测速节点时间 = 0;
 const Pages静态页面 = 'https://edt-pages.github.io';
 ///////////////////////////////////////////////////////全局常量和工具函数///////////////////////////////////////////////
 const WS早期数据最大字节 = 8 * 1024, WS早期数据最大头长度 = Math.ceil(WS早期数据最大字节 * 4 / 3) + 4;
@@ -489,7 +490,7 @@ export default {
 							订阅内容 = await Singbox订阅配置文件热补丁(订阅内容, config_JSON);
 							responseHeaders["content-type"] = 'application/json; charset=utf-8';
 						} else if (订阅类型 === 'clash') {
-							订阅内容 = Clash订阅配置文件热补丁(订阅内容, config_JSON);
+							订阅内容 = await Clash订阅配置文件热补丁(订阅内容, config_JSON);
 							responseHeaders["content-type"] = 'application/x-yaml; charset=utf-8';
 						}
 						return new Response(订阅内容, { status: 200, headers: responseHeaders });
@@ -4177,7 +4178,7 @@ function log(...args) {
 	if (调试日志打印) console.log(...args);
 }
 
-function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}) {
+async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}) {
 	const uuid = config_JSON?.UUID || null;
 	const ECH启用 = Boolean(config_JSON?.ECH);
 	const HOSTS = Array.isArray(config_JSON?.HOSTS) ? [...config_JSON.HOSTS] : [];
@@ -4188,6 +4189,18 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 	const 需要处理gRPC = config_JSON?.传输协议 === "grpc" && Boolean(gRPCUserAgent);
 	const gRPCUserAgentYAML = gRPCUserAgent ? JSON.stringify(gRPCUserAgent) : null;
 	let clash_yaml = Clash_原始订阅内容.replace(/mode:\s*Rule\b/g, 'mode: rule');
+	if (!(缓存测速节点映射 instanceof Map) || !缓存测速节点映射.size || Date.now() - 缓存测速节点时间 > 120000) {
+		try {
+			const dataURL = 'https://test.shyvpn.cc.cd/api/result';
+			const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-Clash-Grouper/1.0' } });
+			if (response.ok) {
+				const payload = await response.json();
+				const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
+				缓存测速节点映射 = new Map(nodes.filter(node => node?.ip).map(node => [String(node.ip), node]));
+				缓存测速节点时间 = Date.now();
+			}
+		} catch { }
+	}
 
 	const baseDnsBlock = `dns:
   enable: true
@@ -4336,11 +4349,184 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		}
 		return names;
 	};
+	const 固定香港优选节点 = `
+104.21.88.204:443#多线 | 中国香港 | 0.2m/s
+172.66.0.1:443#多线 | 中国香港 | 0.08m/s
+104.18.38.205:443#多线 | 中国香港 | 0.18m/s
+103.21.244.5:443#多线 | 中国香港 | 0.13m/s
+104.17.186.112:443#多线 | 中国香港 | 1.76m/s
+172.66.0.2:443#多线 | 中国香港 | 0.44m/s
+172.66.0.3:443#多线 | 中国香港 | 0.17m/s
+104.19.153.229:443#多线 | 中国香港 | 0.52m/s
+172.64.158.118:443#多线 | 中国香港 | 0.37m/s
+172.64.145.23:443#电信 | 中国香港 | 0.17m/s
+172.64.146.77:443#多线 | 中国香港 | 0.23m/s
+104.17.114.106:443#移动 | 中国香港 | 0.55m/s
+172.64.229.156:443#多线 | 中国香港 | 0.82m/s
+104.19.42.73:443#移动 | 中国香港 | 1.7m/s
+104.17.156.4:443#移动 | 中国香港 | 0.15m/s
+104.17.152.174:443#移动 | 中国香港 | 1.44m/s
+172.64.154.83:443#多线 | 中国香港 | 1.71m/s
+172.64.146.143:443#电信 | 中国香港 | 0.35m/s
+104.17.178.221:443#多线 | 中国香港 | 0.47m/s
+104.19.32.38:443#移动 | 中国香港 | 0.23m/s
+104.17.187.59:443#移动 | 中国香港 | 0.53m/s
+172.64.229.77:443#多线 | 中国香港 | 0.22m/s
+172.64.159.67:443#多线 | 中国香港 | 0.46m/s
+172.64.229.2:443#多线 | 中国香港 | 0.36m/s
+172.64.229.46:443#多线 | 中国香港 | 0.41m/s
+104.18.38.254:443#多线 | 中国香港 | 0.25m/s
+172.66.0.4:443#多线 | 中国香港 | 0.24m/s
+172.64.158.34:443#电信 | 中国香港 | 1.83m/s
+172.66.0.9:443#多线 | 中国香港 | 0.24m/s
+172.64.229.8:443#多线 | 中国香港 | 1.65m/s
+104.16.244.64:443#移动 | 中国香港 | 0.64m/s
+104.17.118.15:443#多线 | 中国香港 | 0.46m/s
+104.18.39.116:443#多线 | 中国香港 | 0.44m/s
+172.64.154.190:443#多线 | 中国香港 | 0.55m/s
+172.64.153.30:443#多线 | 中国香港 | 0.24m/s
+172.64.229.254:443#多线 | 中国香港 | 0.36m/s
+`.trim().split(/\n+/).map(line => {
+		const [地址端口, 备注 = ''] = line.trim().split('#');
+		const 端口位置 = 地址端口.lastIndexOf(':');
+		return { ip: 地址端口.slice(0, 端口位置), port: 地址端口.slice(端口位置 + 1) || '443', remark: 备注 };
+	});
+	const 地区元信息 = [
+		{ key: '中国香港', flag: '🇭🇰', country: '中国香港', patterns: [/中国香港|香港|HKG/i] },
+		{ key: '日本东京', flag: '🇯🇵', country: '日本', patterns: [/日本东京|NRT/i] },
+		{ key: '日本大阪', flag: '🇯🇵', country: '日本', patterns: [/日本大阪|KIX/i] },
+		{ key: '韩国首尔', flag: '🇰🇷', country: '韩国', patterns: [/韩国首尔|ICN/i] },
+		{ key: '新加坡', flag: '🇸🇬', country: '新加坡', patterns: [/新加坡|SIN/i] },
+		{ key: '中国台湾台北', flag: '🇨🇳', country: '中国台湾', patterns: [/中国台湾|台湾|台北|TPE/i] },
+		{ key: '美国圣何塞', flag: '🇺🇸', country: '美国', patterns: [/美国圣何塞|圣何塞|SJC/i] },
+		{ key: '美国洛杉矶', flag: '🇺🇸', country: '美国', patterns: [/美国洛杉矶|洛杉矶|LAX/i] },
+		{ key: '美国西雅图', flag: '🇺🇸', country: '美国', patterns: [/美国西雅图|西雅图|SEA/i] },
+		{ key: '美国丹佛', flag: '🇺🇸', country: '美国', patterns: [/美国丹佛|丹佛|DEN/i] },
+		{ key: '美国阿什本', flag: '🇺🇸', country: '美国', patterns: [/美国阿什本|阿什本|IAD/i] },
+		{ key: '德国法兰克福', flag: '🇩🇪', country: '德国', patterns: [/德国法兰克福|法兰克福|FRA/i] },
+		{ key: '荷兰阿姆斯特丹', flag: '🇳🇱', country: '荷兰', patterns: [/荷兰阿姆斯特丹|阿姆斯特丹|AMS/i] },
+	];
+	const 地区分组顺序 = ['日本东京', '新加坡', '美国圣何塞', '德国法兰克福', '荷兰阿姆斯特丹', '日本大阪', '韩国首尔', '中国台湾台北', '美国洛杉矶', '美国西雅图', '美国丹佛', '美国阿什本'];
+	const 匹配地区 = (name = '') => 地区元信息.find(meta => meta.patterns.some(pattern => pattern.test(name))) || { key: '其他地区', flag: '🌐', country: '其他', patterns: [] };
+	const 按IP匹配地区 = (server, fallbackName = '') => {
+		const info = 缓存测速节点映射 instanceof Map ? 缓存测速节点映射.get(String(server || '')) : null;
+		return 匹配地区([info?.regionName, info?.colo, fallbackName].filter(Boolean).join(' '));
+	};
+	const 提取字段 = (text, field) => {
+		const match = text.match(new RegExp(`\\b${field}:\\s*("([^"]*)"|'([^']*)'|([^,}\\n]+))`));
+		return match ? (match[2] || match[3] || match[4] || '').trim() : '';
+	};
+	const 替换字段 = (text, field, value) => {
+		const escaped = YAML字符串(value);
+		const pattern = new RegExp(`(\\b${field}:\\s*)("([^"]*)"|'([^']*)'|([^,}\\n]+))`);
+		return pattern.test(text) ? text.replace(pattern, `$1${escaped}`) : text.replace(/\}(\s*)$/, `, ${field}: ${escaped}}$1`);
+	};
+	const 替换数字字段 = (text, field, value) => {
+		const pattern = new RegExp(`(\\b${field}:\\s*)([^,}\\n]+)`);
+		return pattern.test(text) ? text.replace(pattern, `$1${value}`) : text.replace(/\}(\s*)$/, `, ${field}: ${value}}$1`);
+	};
+	const 生成序号名称 = (meta, index) => `${meta.flag} | ${meta.key} | ${String(index).padStart(2, '0')}`;
+	const 提取Clash代理节点 = (yaml) => {
+		const proxiesBlock = yaml.match(/^proxies:\s*\n([\s\S]*?)(?=^proxy-groups:\s*$)/m)?.[1] || '';
+		const lines = proxiesBlock.split('\n');
+		const nodes = [];
+		for (let index = 0; index < lines.length; index++) {
+			const line = lines[index];
+			if (/^\s*-\s*\{/.test(line)) {
+				let text = line;
+				let braceCount = (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length;
+				while (braceCount > 0 && index + 1 < lines.length) {
+					index++;
+					text += '\n' + lines[index];
+					braceCount += (lines[index].match(/\{/g) || []).length - (lines[index].match(/\}/g) || []).length;
+				}
+				nodes.push({ text, name: 提取字段(text, 'name'), server: 提取字段(text, 'server') });
+			} else if (/^\s*-\s+name:\s*/.test(line)) {
+				const collected = [line];
+				const baseIndent = line.search(/\S/);
+				while (index + 1 < lines.length) {
+					const next = lines[index + 1];
+					const nextIndent = next.search(/\S/);
+					if (next.trim() && nextIndent <= baseIndent && /^\s*-\s+/.test(next)) break;
+					index++;
+					collected.push(next);
+				}
+				const text = collected.join('\n');
+				nodes.push({ text, name: 提取字段(text, 'name'), server: 提取字段(text, 'server') });
+			}
+		}
+		return nodes;
+	};
+	const 创建固定香港节点文本 = (template, item, name) => {
+		let nodeText = template || `  - {name: ${YAML字符串(name)}, server: ${item.ip}, port: ${item.port}, type: vless, uuid: ${YAML字符串(config_JSON?.UUID || '')}, tls: true, skip-cert-verify: false, servername: ${YAML字符串(config_JSON?.HOST || 'shyvpn.cc.cd')}, client-fingerprint: chrome, network: ws, ws-opts: {path: /, headers: {Host: ${YAML字符串(config_JSON?.HOST || 'shyvpn.cc.cd')}}}}`;
+		nodeText = 替换字段(nodeText, 'name', name);
+		nodeText = 替换字段(nodeText, 'server', item.ip);
+		nodeText = 替换数字字段(nodeText, 'port', item.port || '443');
+		return nodeText;
+	};
 	const 精简Clash代理组 = (yaml) => {
 		if (!/^proxy-groups:\s*$/m.test(yaml) || !/^rules:\s*$/m.test(yaml)) return yaml;
-		const proxyNames = 提取Clash代理名称(yaml);
-		if (!proxyNames.length) return yaml;
-		const proxyList = proxyNames.map(name => `      - ${YAML字符串(name)}`).join('\n');
+		const 原始节点 = 提取Clash代理节点(yaml);
+		if (!原始节点.length) return yaml;
+		const 动态地区计数 = new Map();
+		const 动态节点 = 原始节点.map((node, index) => {
+			const meta = 按IP匹配地区(node.server, node.name);
+			const baseIndex = meta.key === '中国香港' ? 固定香港优选节点.length : 0;
+			const regionCount = (动态地区计数.get(meta.key) || 0) + 1;
+			动态地区计数.set(meta.key, regionCount);
+			const nextIndex = baseIndex + regionCount;
+			const newName = 生成序号名称(meta, nextIndex);
+			return { ...node, text: 替换字段(node.text, 'name', newName), name: newName, region: meta.key, country: meta.country, order: index };
+		});
+		const 香港Meta = 地区元信息[0];
+		const 固定香港节点 = 固定香港优选节点.map((item, index) => {
+			const name = 生成序号名称(香港Meta, index + 1);
+			return { text: 创建固定香港节点文本(动态节点[0]?.text, item, name), name, region: '中国香港', country: '中国香港', fixed: true };
+		});
+		const 全部节点 = [...固定香港节点, ...动态节点];
+		const seenName = new Set();
+		const uniqueNames = (nodes) => nodes.map(node => node.name).filter(name => {
+			if (!name || seenName.has(name)) return false;
+			seenName.add(name);
+			return true;
+		});
+		const 优选节点 = 动态节点.slice(0, 30);
+		const 全球节点 = [];
+		const 国家计数 = new Map();
+		for (const node of 动态节点) {
+			const count = 国家计数.get(node.country) || 0;
+			if (count >= 2) continue;
+			全球节点.push(node);
+			国家计数.set(node.country, count + 1);
+		}
+		const 已入核心 = new Set([...优选节点, ...全球节点].map(node => node.name));
+		const 备用节点 = 动态节点.filter(node => !已入核心.has(node.name));
+		const 地区节点Map = new Map();
+		for (const node of 动态节点) {
+			if (node.region === '中国香港') continue;
+			if (!地区节点Map.has(node.region)) 地区节点Map.set(node.region, []);
+			地区节点Map.get(node.region).push(node);
+		}
+		const listLines = (names) => names.length ? names.map(name => `      - ${YAML字符串(name)}`).join('\n') : '      - DIRECT';
+		const selectLines = (nodes, extra = true) => {
+			seenName.clear();
+			const names = uniqueNames(nodes);
+			const head = extra ? ['故障切换', 'DIRECT'] : [];
+			return listLines([...head, ...names]);
+		};
+		const testLines = (nodes) => {
+			seenName.clear();
+			const names = uniqueNames(nodes.length ? nodes : 动态节点);
+			return listLines(names);
+		};
+		const proxiesBlock = `proxies:\n${全部节点.map(node => node.text).join('\n')}\n`;
+		yaml = yaml.replace(/^proxies:\s*\n[\s\S]*?(?=^proxy-groups:\s*$)/m, proxiesBlock);
+		const 地区组块 = 地区分组顺序
+			.filter(region => 地区节点Map.has(region))
+			.map(region => `  - name: ${region}
+    type: select
+    proxies:
+${selectLines(地区节点Map.get(region))}`).join('\n');
 		const proxyGroupBlock = `proxy-groups:
   - name: 优选节点
     type: select
@@ -4348,26 +4534,45 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
       - 自动优选
       - 故障切换
       - DIRECT
-${proxyList}
+${listLines(优选节点.map(node => node.name))}
+  - name: 全球节点
+    type: select
+    proxies:
+      - 自动优选
+      - 故障切换
+      - DIRECT
+${listLines(全球节点.map(node => node.name))}
+  - name: 香港节点
+    type: select
+    proxies:
+${selectLines(固定香港节点)}
+${地区组块 ? 地区组块 + '\n' : ''}  - name: 备用节点
+    type: select
+    proxies:
+${selectLines(备用节点)}
   - name: 自动优选
     type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 300
     tolerance: 50
     proxies:
-${proxyList}
+${testLines(优选节点)}
   - name: 故障切换
     type: fallback
     url: http://www.gstatic.com/generate_204
     interval: 180
     proxies:
-${proxyList}`;
+${testLines(全球节点.length ? 全球节点 : 优选节点)}`;
 		let patched = yaml.replace(/^proxy-groups:\s*\n[\s\S]*?(?=^rules:\s*$)/m, proxyGroupBlock + '\n');
 		const ruleTargetMap = {
 			'🚀 节点选择': '优选节点',
 			'♻️ 自动选择': '自动优选',
 			'🔯 故障转移': '故障切换',
 			'🔮 负载均衡': '自动优选',
+			'🌍 国外媒体': '优选节点',
+			'🌏 国内媒体': 'DIRECT',
+			'🌐 全球节点': '全球节点',
+			'🇭🇰 香港节点': '香港节点',
 			'🎯 全球直连': 'DIRECT',
 			'🛑 全球拦截': 'REJECT',
 			'🐟 漏网之鱼': '优选节点',
@@ -5330,8 +5535,6 @@ async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) 
 			return [];
 		}
 	};
-	const KV优选IP = await 读取KV优选IP();
-	if (KV优选IP.length > 0) return [KV优选IP, KV优选IP.join('\n')];
 	const 读取测速优选IP = async () => {
 		const dataURL = env.CFIP_DATA_URL || 'https://test.shyvpn.cc.cd/api/result';
 		try {
@@ -5339,9 +5542,12 @@ async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) 
 			if (!response.ok) return [];
 			const payload = await response.json();
 			const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
+			缓存测速节点映射 = new Map(nodes.filter(node => node?.ip).map(node => [String(node.ip), node]));
+			缓存测速节点时间 = Date.now();
+			const limit = Math.max(nodes.length, Number(count) || 16, 260);
 			return nodes
 				.filter(node => node && node.ip && !String(node.ip).includes(':'))
-				.slice(0, Math.max(1, Number(count) || 16))
+				.slice(0, limit)
 				.map((node, index) => {
 					const port = 指定端口 === -1 ? (node.port || 443) : 指定端口;
 					return `${node.ip}:${port}#${格式化优选节点名称(node, index)}`;
@@ -5352,6 +5558,8 @@ async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) 
 	};
 	const 测速优选IP = await 读取测速优选IP();
 	if (测速优选IP.length > 0) return [测速优选IP, 测速优选IP.join('\n')];
+	const KV优选IP = await 读取KV优选IP();
+	if (KV优选IP.length > 0) return [KV优选IP, KV优选IP.join('\n')];
 	const 运营商名称映射 = {
 		cmcc: 'CF移动优选',
 		cu: 'CF联通优选',
