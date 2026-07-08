@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '_worker.js'
+      - 'worker.js'
 
 permissions:
   contents: write
@@ -21,7 +21,7 @@ jobs:
       - name: Package worker file
         run: |
           rm -f worker.zip
-          zip -9 worker.zip _worker.js
+          zip -9 worker.zip worker.js
 
       - name: Commit packaged worker
         uses: stefanzweifel/git-auto-commit-action@v5

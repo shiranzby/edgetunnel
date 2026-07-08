@@ -1,217 +1,386 @@
-# 🚀 edgetunnel 2.1
-![后台页面](./img.png)
+# ShyVPN EdgeTunnel
 
-[![Stars](https://img.shields.io/github/stars/cmliu/edgetunnel?style=flat-square&logo=github)](https://github.com/cmliu/edgetunnel/stargazers)
-[![Forks](https://img.shields.io/github/forks/cmliu/edgetunnel?style=flat-square&logo=github)](https://github.com/cmliu/edgetunnel/network/members)
-[![License](https://img.shields.io/github/license/cmliu/edgetunnel?style=flat-square)](https://github.com/cmliu/edgetunnel/blob/main/LICENSE)
-[![Telegram](https://img.shields.io/badge/Telegram-Group-blue?style=flat-square&logo=telegram)](https://t.me/CMLiussss)
-[![YouTube](https://img.shields.io/badge/YouTube-Channel-red?style=flat-square&logo=youtube)](https://www.youtube.com/watch?v=LeT4jQUh8ok)
-[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat-square&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/cmliu/edgetunnel)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cmliu/edgetunnel)
+![Overview](./assets/images/Overview.png)
 
----
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shiranzby/edgetunnel)
+[![Stars](https://img.shields.io/github/stars/shiranzby/edgetunnel?style=flat-square&logo=github)](https://github.com/shiranzby/edgetunnel/stargazers)
+[![Forks](https://img.shields.io/github/forks/shiranzby/edgetunnel?style=flat-square&logo=github)](https://github.com/shiranzby/edgetunnel/network/members)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Mihomo](https://img.shields.io/badge/Client-Mihomo%20%2F%20Clash-blue?style=flat-square)](https://github.com/MetaCubeX/mihomo)
 
-## 📖 项目简介
+基于 [cmliu/edgetunnel](https://github.com/cmliu/edgetunnel) 的 Cloudflare Worker / EdgeTunnel 能力增强版。项目完整继承上游 VLESS、WebSocket、订阅生成、多客户端适配、管理面板等核心能力，并额外面向 Cloudflare IP 候选池、地区代理组、本地测速面板、Clash/Mihomo 使用体验和可维护部署流程做了整理。
 
-**edgetunnel** 是一个基于 CF Workers/Pages 平台的边缘计算隧道解密方案。它能够高效地处理网络流量，并提供强大的管理面板和灵活的节点配置能力。
+它适合想要研究 Cloudflare Workers、EdgeTunnel、多客户端订阅生成、自建 Cloudflare IP 优选链路的个人用户和开发者。
 
-- 🖥️ **Demo 演示站点**：[https://EDT-Pages.github.io/admin](https://EDT-Pages.github.io/admin)
+## 项目简介
 
-### ✨ 核心特性
+ShyVPN EdgeTunnel 做三件事：
 
-- 🛡️ **协议支持**：支持 VLESS、Trojan、Shadowsocks 等主流协议，深度集成加密传输。
-- 📊 **管理面板**：内置可视化后台，支持实时配置修改、日志查看及流量统计。
-- 🛠️ **部署灵活**：完整适配 CF Workers 及 CF Pages (GitHub / 上传)。
-- 🔄 **订阅系统**：内置自动订阅生成及混淆转换，适配主流客户端（Clash, Sing-box, Surge 等）。
-- ⚡ **性能加速**：支持自定义 ProxyIP、SOCKS5/HTTP 链式代理及优选 API，优化网络延迟。
-- 🌐 **多台适配**：完美适配 Windows, Android, iOS, MacOS 及各种软路由固件。
+1. 把 Cloudflare Worker 部署成 VLESS over WebSocket 代理入口。
+2. 继承上游多客户端订阅能力，并重点优化 Clash/Mihomo/Sparkle 的 `/clash` 使用体验。
+3. 结合 Cloudflare IP 候选数据和本机客户端测速，让用户更容易选择可用入口。
 
----
+完整链路：
 
-## 💡 快速部署
->[!TIP]
-> 📖 **详尽图文教程**：[edgetunnel 部署指南](https://cmliussss.com/p/edt2/)
+```text
+本机或服务器测速 Cloudflare IP
+  -> 输出 /api/result
+  -> Worker 读取候选数据
+  -> Worker 生成多格式订阅
+  -> 客户端导入订阅
+  -> 用户选择自动测速或指定地区
+  -> VLESS over WebSocket 连接 Cloudflare Worker
+```
 
->[!WARNING]
-> ⚠️ **Error 1101问题**：[视频解析](https://www.youtube.com/watch?v=r4uVTEJptdE)
+本项目不是替代上游，而是在上游基础上补充一套更适合长期维护、公开发布和客户端导入的工程结构。
 
-### ⚙️ Workers 部署
+## Demo 演示站点
+
+上游演示页面：
+
+- EdgeTunnel Admin Demo: [https://EDT-Pages.github.io/admin](https://EDT-Pages.github.io/admin)
+
+部署本项目后，你会得到自己的演示入口：
+
+```text
+https://vpn.example.com/admin       # Worker 管理面板
+https://vpn.example.com/clash       # Clash/Mihomo/Sparkle 订阅入口
+http://127.0.0.1:8789/              # 本地 Cloudflare IP 测速面板
+http://127.0.0.1:8789/api/result    # 本地候选 IP API
+```
+
+如果你通过 Cloudflare Tunnel、cftunnelX、frp 等工具暴露测速面板，也可以得到公网测速入口：
+
+```text
+https://test.example.com/
+https://test.example.com/api/result
+```
+
+## 核心特性
+
+继承上游能力：
+
+- Cloudflare Workers / Pages 生态部署能力。
+- VLESS over WebSocket 核心代理能力。
+- 多格式订阅生成和大量客户端适配基础。
+- 管理面板、KV 配置、请求日志、Cloudflare 用量查询、订阅 token / UUID 等基础机制。
+- ProxyIP、SOCKS5/HTTP 等高级转发能力。
+
+本项目额外增强：
+
+- `/clash` 订阅入口更清晰，面向 Clash/Mihomo/Sparkle 直接导入。
+- Worker 内置 Clash YAML 生成兜底，降低外部订阅转换服务异常带来的影响。
+- 新增 `节点选择` 作为第一层总入口，客户端操作逻辑更直观。
+- 自动测速组使用客户端本机 `url-test`，最终选择更贴近用户当前网络。
+- 地区组按国家/地区聚合，减少城市组堆叠和重复节点名。
+- 固定香港候选池作为地区节点兜底，避免测速数据缺失时香港组为空。
+- `local-cfst-dashboard` 提供本地 8789 测速面板和 `/api/result`。
+- 配套 `wrangler.example.toml`、维护文档、发布目录和 AI Skill 文档，方便迁移与二次维护。
+
+## 管理面板能力
+
+上游 EdgeTunnel 的管理面板能力在本项目中继续保留，访问入口通常为：
+
+```text
+https://vpn.example.com/admin
+```
+
+当前 Worker 代码中可见的管理能力包括：
+
+| 功能 | 路径 / 机制 | 说明 |
+|---|---|---|
+| 登录保护 | `/login`、`/admin` | 使用 `ADMIN` / `KEY` / `TOKEN` 等变量派生登录凭据，也支持 `DISABLE_LOGIN` 控制登录要求。 |
+| 配置管理 | `/admin/config.json` | 读取和保存主配置，数据存入 Workers KV。 |
+| Cloudflare 配置 | `/admin/cf.json` | 保存 Cloudflare 相关配置。 |
+| Telegram 通知配置 | `/admin/tg.json` | 保存日志通知相关配置。 |
+| 自定义优选 IP | `/admin/ADD.txt` | 管理自定义候选 IP 列表。 |
+| 请求日志 | `/admin/log.json` | 从 KV 读取访问日志，包含类型、IP、ASN、地区、URL、UA、时间等。 |
+| Cloudflare 用量查询 | `/admin/getCloudflareUsage` | 通过 Cloudflare Email、Global API Key、Account ID 或 API Token 查询请求量。 |
+| 优选 API 检查 | `/admin/getADDAPI` | 验证外部优选 IP API 是否可用。 |
+| 代理检查 | `/admin/check` | 检查 SOCKS5 / HTTP / HTTPS / TURN / SSTP 等链式代理可用性。 |
+
+关于“流量统计”：当前项目可通过 Cloudflare API 查询请求量，并在订阅响应中写入 `Subscription-Userinfo` 头部，用于展示 upload/download/total 这类订阅用量信息。但这不等同于传统机场按用户精确统计真实转发字节的计费系统；如果后续要做完整流量面板，需要额外设计持久化统计、用户区分和 Workers 成本控制。
+
+## 架构流程
+
+![Client-groups](./assets/images/Architecture.png)
+
+## 快速部署系列
 
 <details>
-<summary><code><strong>「 Workers 部署文字教程 」</strong></code></summary>
+<summary><code><strong>方式一：Cloudflare Workers 一键部署</strong></code> - 适合快速体验</summary>
+<br>
 
-1. 部署 CF Worker：
-   - 在 CF Worker 控制台中创建一个新的 Worker。
-   - 将 [worker.js](https://github.com/cmliu/edgetunnel/blob/main/_worker.js) 的内容粘贴到 Worker 编辑器中。
-   - 在左侧的 `设置`选项卡中，选择 `变量` > `添加变量`。
-     变量名称填写**ADMIN**，值则为你的管理员密码，后点击 `保存`即可。
+点击按钮后按 Cloudflare 页面提示完成部署：
 
-2. 绑定 KV 命名空间：
-   - 在 `绑定`选项卡中选择 `添加绑定 +` > `KV 命名空间` > `添加绑定`，然后选择一个已有的命名空间或创建一个新的命名空间进行绑定。
-   - `变量名称`填写**KV**，然后点击 `添加绑定`即可。
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shiranzby/edgetunnel)
 
-3. 给 Workers绑定 自定义域： 
-   - 在 workers控制台的 `触发器`选项卡，下方点击 `添加自定义域`。
-   - 填入你已转入 CF 域名解析服务的次级域名，例如:`vless.google.com`后 点击`添加自定义域`，等待证书生效即可。
+部署完成后仍需要补充：
 
-4. 访问后台：
-   - 访问 `https://vless.google.com/admin` 输入管理员密码即可登录后台。
+- `UUID`
+- `ADMIN` 或 `KEY`
+- `HOST`
+- `KV` namespace 绑定
+- 自定义域名 route
+- 可选的 `CFIP_DATA_URL`
 
 </details>
 
-### 🛠 Pages 上传 部署方法 **最佳推荐!!!** [图文教程](https://cmliussss.com/p/edt2/)
-
 <details>
-<summary><code><strong>「 Pages 上传文件部署文字教程 」</strong></code></summary>
+<summary><code><strong>方式二：Wrangler CLI 部署</strong></code> - 适合长期维护和本地开发</summary>
 
-1. 部署 CF Pages：
-   - 下载 [main.zip](https://github.com/cmliu/edgetunnel/archive/refs/heads/main.zip) 文件，并点上 Star !!!
-   - 在 CF Pages 控制台中选择 `上传资产`后，为你的项目取名后点击 `创建项目`，然后上传你下载好的 [main.zip](https://github.com/cmliu/edgetunnel/archive/refs/heads/main.zip) 文件后点击 `部署站点`。
-   - 部署完成后点击 `继续处理站点` 后，选择 `设置` > `环境变量` > **制作**为生产环境定义变量 > `添加变量`。
-     变量名称填写**ADMIN**，值则为你的管理员密码，后点击 `保存`即可。
-   - 返回 `部署` 选项卡，在右下角点击 `创建新部署` 后，重新上传 [main.zip](https://github.com/cmliu/edgetunnel/archive/refs/heads/main.zip) 文件后点击 `保存并部署` 即可。
+<br>
 
-2. 绑定 KV 命名空间：
-   - 在 `设置`选项卡中选择 `绑定` > `+ 添加` > `KV 命名空间`，然后选择一个已有的命名空间或创建一个新的命名空间进行绑定。
-   - `变量名称`填写**KV**，然后点击 `保存`后重试部署即可。
+使用 Wrangler 可以完整控制配置、KV 绑定和部署流程。
 
-3. 给 Pages绑定 CNAME自定义域：[视频教程](https://www.youtube.com/watch?v=LeT4jQUh8ok&t=851s)
-   - 在 Pages控制台的 `自定义域`选项卡，下方点击 `设置自定义域`。
-   - 填入你的自定义次级域名，注意不要使用你的根域名，例如：
-     您分配到的域名是 `fuck.cloudns.biz`，则添加自定义域填入 `lizi.fuck.cloudns.biz`即可；
-   - 按照 CF 的要求将返回你的域名DNS服务商，添加 该自定义域 `lizi`的 CNAME记录 `edgetunnel.pages.dev` 后，点击 `激活域`即可。
-   
-4. 访问后台：
-   - 访问 `https://lizi.fuck.cloudns.biz/admin` 输入管理员密码即可登录后台。
+```bash
+npm install
+cp wrangler.example.toml wrangler.toml
+npx wrangler kv namespace create KV
+npx wrangler deploy
+```
+
+Windows PowerShell 生成 UUID：
+
+```powershell
+[guid]::NewGuid().ToString()
+```
 
 </details>
 
-### 🛠 Pages + GitHub 部署方法
-
 <details>
-<summary><code><strong>「 Pages + GitHub 部署文字教程 」</strong></code></summary>
+<summary><code><strong>方式三：Cloudflare Pages 上传部署</strong></code> - 适合不使用 GitHub 自动构建</summary>
 
-1. 部署 CF Pages：
-   - 在 Github 上先 Fork 本项目，并点上 Star !!!
-   - 在 CF Pages 控制台中选择 `连接到 Git`后，选中 `edgetunnel`项目后点击 `开始设置`。
-   - 在 `设置构建和部署`页面下方，选择 `环境变量（高级）`后并 `添加变量`
-     变量名称填写**ADMIN**，值则为你的管理员密码，后点击 `保存并部署`即可。
+<br>
 
-2. 绑定 KV 命名空间：
-   - 在 `设置`选项卡中选择 `绑定` > `+ 添加` > `KV 命名空间`，然后选择一个已有的命名空间或创建一个新的命名空间进行绑定。
-   - `变量名称`填写**KV**，然后点击 `保存`后重试部署即可。
+上游 EdgeTunnel 支持 Pages 上传方式。本项目保留 Worker 入口能力，发布前请确认当前仓库入口文件和 Pages 构建方式一致。
 
-3. 给 Pages绑定 CNAME自定义域：[视频教程](https://www.youtube.com/watch?v=LeT4jQUh8ok&t=851s)
-   - 在 Pages控制台的 `自定义域`选项卡，下方点击 `设置自定义域`。
-   - 填入你的自定义次级域名，注意不要使用你的根域名，例如：
-     您分配到的域名是 `fuck.cloudns.biz`，则添加自定义域填入 `lizi.fuck.cloudns.biz`即可；
-   - 按照 CF 的要求将返回你的域名DNS服务商，添加 该自定义域 `lizi`的 CNAME记录 `edgetunnel.pages.dev` 后，点击 `激活域`即可。
+通用流程：
 
-4. 访问后台：
-   - 访问 `https://lizi.fuck.cloudns.biz/admin` 输入管理员密码即可登录后台。
+1. 下载或打包仓库源码。
+2. 进入 Cloudflare Dashboard。
+3. 创建 Pages 项目并上传文件。
+4. 在 Pages 项目设置中添加环境变量。
+5. 绑定 KV namespace。
+6. 重新部署。
 
 </details>
 
----
+<details>
+<summary><code><strong>方式四：Cloudflare Pages + GitHub 部署</strong></code> - 适合公开仓库自动部署</summary>
 
-## 🔑 环境变量说明
+<br>
 
-| 变量名 | 必填 | 示例 | 详细备注 |
-| :--- | :---: | :--- | :--- |
-| **ADMIN** | ✅ | `123456` | 后台管理面板登录密码 |
-| **KEY** | ❌ | `CMLiussss` | 快速订阅路径密钥，访问 `/CMLiussss` 即可快速获取节点 |
-| **UUID** | ❌ | `90cd4a77-141a-43c9-991b-08263cfe9c10` | 强制固定UUID，只支持**UUIDv4**标准格式 |
-| **PROXYIP** | ❌ | `proxyip.cmliussss.net:443` | 全局自定义反代 IP  |
-| **URL** | ❌ | `https://cloudflare-error-page-3th.pages.dev` | 默认主页伪装地址（可填写网页 URL 或 `1101`） |
-| **GO2SOCKS5** | ❌ | `blog.cmliussss.com`,`*.ip111.cn`,`*google.com` | 强制走 SOCKS5 的名单 (`*` 为全局，域名用逗号分隔) |
-| **DEBUG** | ❌ | `1`或`true` | **开发者模式**，默认关闭调试日志功能（console.log），设置`1`或`true`则开启调试日志功能 |
-| **OFF_LOG** | ❌ | `1`或`true` | 默认开启日志记录功能，设置`1`或`true`则关闭日志记录功能 |
-| **BEST_SUB** | ❌ | `1`或`true` | 默认关闭作为**优选订阅生成器**的功能，设置`1`或`true`则开启该功能 |
-| **PRELOAD_RACE_DIAL** | ❌ | `1`或`true` | 默认关闭作为**预加载竞速拨号**的功能，设置`1`或`true`则开启该功能 |
+将 GitHub 仓库连接到 Cloudflare Pages 后，可以通过推送代码触发部署。
 
----
+通用流程：
 
-## 🔧 高级实用技巧
-如需修改 **订阅地址里的TOKEN** 和 **用于节点验证的UUID** ，可通过修改变量
-1. 修改`ADMIN`或`KEY`变量的值，可以随机修改 **订阅地址里的TOKEN** 和 **用于节点验证的UUID**
-2. 设置`UUID`变量可以强制固定 **订阅地址里的TOKEN** 和 **用于节点验证的UUID**，注意必须是**UUIDv4**标准格式，否则会导致节点无法使用。
+1. Fork 或创建自己的 GitHub 仓库。
+2. 在 Cloudflare Pages 中连接该仓库。
+3. 设置环境变量。
+4. 绑定 KV namespace。
+5. 推送代码触发部署。
 
-本工具支持通过 **PATH路径** 动态切换底层代理方案：
+</details>
 
-- 指定 `PROXYIP` 案例
-   ```url
-   /proxyip=proxyip.cmliussss.net
-   /?proxyip=proxyip.cmliussss.net
-   ```
+<details>
+<summary><code><strong>方式五：本地测速面板部署</strong></code> - 可选，用于提供 Cloudflare IP 候选数据</summary>
 
-- 指定 `SOCKS5` 案例
-   ```url
-   /socks5=user:password@127.0.0.1:1080
-   /?socks5=user:password@127.0.0.1:1080
-   /socks://dXNlcjpwYXNzd29yZA==@127.0.0.1:1080 (默认激活全局SOCKS5)
-   /socks5://user:password@127.0.0.1:1080 (默认激活全局SOCKS5)
-   ```
+<br>
 
-- 指定 `HTTP代理` 案例
-   ```url
-   /http=user:password@127.0.0.1:1080
-   /http://user:password@127.0.0.1:8080 (默认激活全局SOCKS5)
-   ```
+测速面板不是必需项，但它能为 Worker 提供更贴近用户网络的 Cloudflare IP 候选数据。
 
----
+```bash
+cd local-cfst-dashboard
+cp config.json.example config.json
+node server.mjs
+```
 
-## 💻 客户端适配情况
+Windows 也可以直接运行：
+
+```bat
+local-cfst-dashboard\run.bat
+```
+
+默认地址：
+
+```text
+http://127.0.0.1:8789/
+http://127.0.0.1:8789/api/result
+```
+
+</details>
+
+## 环境变量说明
+
+推荐从 `wrangler.example.toml` 复制配置：
+
+```toml
+name = "shyvpn-edgetunnel"
+main = "worker.js"
+compatibility_date = "2025-11-04"
+keep_vars = false
+
+[vars]
+UUID = "<YOUR_UUID>"
+ADMIN = "<YOUR_ADMIN_PASSWORD>"
+HOST = "vpn.example.com"
+SUB = "sub.cmliussss.workers.dev"
+CFIP_DATA_URL = "https://test.example.com/api/result"
+CFST_PANEL_URL = "https://test.example.com/"
+DISABLE_LOGIN = "false"
+DEBUG = "false"
+SUBSCRIBE_ORIGIN = "https://vpn.example.com"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "<YOUR_KV_NAMESPACE_ID>"
+```
+
+常用变量：
+
+| 变量名 | 必填 | 示例 | 说明 |
+|---|---:|---|---|
+| `UUID` | 是 | `<YOUR_UUID>` | VLESS UUID，也可固定订阅识别值。 |
+| `ADMIN` | 是 | `<YOUR_ADMIN_PASSWORD>` | 管理页面密码。上游也支持 `KEY`、`TOKEN` 等兼容变量。 |
+| `HOST` | 是 | `vpn.example.com` | Worker 自定义域名。 |
+| `KV` | 是 | `KV` binding | Cloudflare KV namespace 绑定。 |
+| `SUB` | 否 | `sub.cmliussss.workers.dev` | 外部订阅转换服务 host。 |
+| `CFIP_DATA_URL` | 否 | `https://test.example.com/api/result` | Cloudflare IP 候选数据 API。 |
+| `CFST_PANEL_URL` | 否 | `https://test.example.com/` | 测速面板地址。 |
+| `SUBSCRIBE_ORIGIN` | 否 | `https://vpn.example.com` | 订阅入口规范 origin。 |
+| `DISABLE_LOGIN` | 否 | `false` | 是否关闭管理页登录。 |
+| `DEBUG` | 否 | `false` | 调试日志开关。 |
+| `PROXYIP` | 否 | `proxy.example.com:443` | 上游反代/代理 IP 能力。 |
+| `SOCKS5` / `GO2SOCKS5` | 否 | `user:pass@host:port` | 上游 SOCKS5/链式代理能力。 |
+| `PATH` | 否 | `/your-path` | 自定义传输路径。 |
+| `URL` | 否 | `https://example.com` | 伪装页或回落页面。 |
+
+更多上游变量可参考 [cmliu/edgetunnel](https://github.com/cmliu/edgetunnel) 的环境变量说明。本项目新增重点是 `CFIP_DATA_URL` 和 `CFST_PANEL_URL`。
+
+## 高级使用技巧
+
+### 1. 使用 Cloudflare IP 候选 API
+
+将本地或服务器测速结果暴露为：
+
+```text
+https://test.example.com/api/result
+```
+
+然后设置：
+
+```toml
+CFIP_DATA_URL = "https://test.example.com/api/result"
+```
+
+Worker 会在生成订阅时读取该数据，并整理为可供客户端使用的节点；其中 Clash/Mihomo 类客户端会从 `/clash` 中获得更清晰的代理组结构。
+
+### 2. 让客户端本机继续测速
+
+远端测速结果只用于生成候选池，最终延迟仍由 Sparkle/Mihomo 在用户本机通过 `url-test` 判断。这比单纯依赖云服务器测速更接近真实体验。
+
+### 3. 手动选择地区
+
+订阅生成后，优先操作 `节点选择`：
+
+```text
+节点选择 -> 自动优选
+节点选择 -> 香港节点
+节点选择 -> 日本节点
+节点选择 -> 新加坡节点
+节点选择 -> 美国节点
+节点选择 -> 故障切换
+节点选择 -> DIRECT
+```
+
+如果你在地区组里选了节点但没有生效，先确认 `节点选择` 是否已经选中了该地区组。
+
+![Client group design](./assets/images/client-groups.svg)
+
+### 4. 固定 UUID 与订阅入口
+
+设置 `UUID` 可以固定节点 UUID。设置 `ADMIN` 或 `KEY` 可以影响管理入口和订阅 token。公开部署时建议使用随机且不易猜测的值。
+
+### 5. 使用 KV 保存配置
+
+管理页面和订阅配置会用到 Workers KV。建议绑定名保持为：
+
+```text
+KV
+```
+
+### 6. 配合 AI Skill 维护项目
+
+本仓库提供了 AI 迁移/维护 Skill 说明：[docs/AI_MIGRATION_SKILL.md](docs/AI_MIGRATION_SKILL.md)。
+
+当你把项目交给 AI 工具继续部署、迁移、排错或生成文档时，可以让它先读取这个文件。它会告诉 AI：项目目标是什么、关键环境变量有哪些、代理组生成规则是什么、如何验证订阅、哪些文件不能公开。
+
+## 客户端适配情况
+
+本项目完整继承上游 EdgeTunnel 的多客户端适配思路。Clash/Mihomo/Sparkle 是本项目额外重点优化的订阅体验，但不是唯一支持方向；支持情况取决于客户端内核版本、订阅类型和转换配置。
 
 | 平台 | 推荐客户端 |
-| :--- | :--- |
-| **Windows** | [v2rayN](https://github.com/2dust/v2rayN/releases)、[Hiddify](https://github.com/hiddify/hiddify-app/releases)、[FlClash](https://github.com/chen08209/FlClash/releases)、[mihomo-party](https://github.com/mihomo-party-org/clash-party/releases)、[Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev/releases)、[Clashmi](https://github.com/KaringX/clashmi/releases)、[FlyClash](https://github.com/GtxFury/FlyClash/releases)、[Karing](https://github.com/KaringX/karing/releases)、[Bettbox](https://github.com/appshubcc/Bettbox/releases) |
-| **Android** | [v2rayNG](https://github.com/2dust/v2rayNG/releases)、[ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid/releases/)、[FlClash](https://github.com/chen08209/FlClash/releases)、[Clashmi](https://github.com/KaringX/clashmi/releases)、[Hiddify](https://github.com/hiddify/hiddify-app/releases)、[NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases)、[FlyClash](https://github.com/GtxFury/FlyClash/releases)、[Karing](https://github.com/KaringX/karing/releases)、[Bettbox](https://github.com/appshubcc/Bettbox/releases) |
-| **iOS** | Surge、Shadowrocket、Stash、[Hiddify](https://github.com/hiddify/hiddify-app/releases)、Loon、Egern、[Clashmi](https://clashmi.app/download)、[Karing](https://karing.app/)、Quantumult X |
-| **macOS** | [FlClash](https://github.com/chen08209/FlClash/releases)、[mihomo-party](https://github.com/mihomo-party-org/clash-party/releases)、[Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev/releases)、Surge、[Clashmi](https://clashmi.app/download)、[Karing](https://karing.app/)、[FlyClash](https://github.com/GtxFury/FlyClash/releases) |
-| **鸿蒙** | [ClashBox](https://github.com/xiaobaigroup/ClashBox/releases) |
----
+|---|---|
+| Windows | [v2rayN](https://github.com/2dust/v2rayN/releases)、[Hiddify](https://github.com/hiddify/hiddify-app/releases)、[FlClash](https://github.com/chen08209/FlClash/releases)、[mihomo-party](https://github.com/mihomo-party-org/clash-party/releases)、[Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev/releases)、[Clashmi](https://github.com/KaringX/clashmi/releases)、[FlyClash](https://github.com/GtxFury/FlyClash/releases)、[Karing](https://github.com/KaringX/karing/releases)、[Bettbox](https://github.com/appshubcc/Bettbox/releases) |
+| Android | [v2rayNG](https://github.com/2dust/v2rayNG/releases)、[ClashMetaForAndroid](https://github.com/MetaCubeX/ClashMetaForAndroid/releases/)、[FlClash](https://github.com/chen08209/FlClash/releases)、[Clashmi](https://github.com/KaringX/clashmi/releases)、[Hiddify](https://github.com/hiddify/hiddify-app/releases)、[NekoBox](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases)、[FlyClash](https://github.com/GtxFury/FlyClash/releases)、[Karing](https://github.com/KaringX/karing/releases)、[Bettbox](https://github.com/appshubcc/Bettbox/releases) |
+| iOS | Surge、Shadowrocket、Stash、[Hiddify](https://github.com/hiddify/hiddify-app/releases)、Loon、Egern、[Clashmi](https://clashmi.app/download)、[Karing](https://karing.app/)、Quantumult X |
+| macOS | [FlClash](https://github.com/chen08209/FlClash/releases)、[mihomo-party](https://github.com/mihomo-party-org/clash-party/releases)、[Clash Verge Rev](https://github.com/clash-verge-rev/clash-verge-rev/releases)、Surge、[Clashmi](https://clashmi.app/download)、[Karing](https://karing.app/)、[FlyClash](https://github.com/GtxFury/FlyClash/releases) |
+| 鸿蒙 | [ClashBox](https://github.com/xiaobaigroup/ClashBox/releases) |
 
-## ⭐ 项目热度
+使用建议：
 
-[![Stargazers over time](https://starchart.cc/cmliu/edgetunnel.svg?variant=adaptive)](https://starchart.cc/cmliu/edgetunnel)
+- Clash/Mihomo/Sparkle/FlClash/Clash Verge Rev/mihomo-party 等客户端优先使用 `/clash`。
+- v2rayN、v2rayNG、NekoBox 等客户端可使用 VLESS 分享链接或上游通用订阅能力。
+- Surge、Stash、Shadowrocket、Loon、Egern、Quantumult X 等客户端依赖对应订阅格式和转换配置。
+- 旧版 Clash 内核可能不支持 VLESS，建议使用 Mihomo/Clash.Meta 生态内核。
 
----
+如果你基于本项目创建自己的仓库，可以把上面的 `shiranzby/edgetunnel` 替换为你的仓库地址。
 
-## 🙏 特别鸣谢
-### 💖 赞助支持 - 提供云服务器维持[订阅转换服务](https://sub.cmliussss.net/)
-- [Alice](https://url.cmliussss.com/alice)
-- [EasyLinks](https://www.vmrack.net?ref_code=5Zk7eNhbgL7)
-- [ZMTO(VTEXS)](https://zmto.com/?affid=1532)
+## 推荐仓库结构
 
-### 🛠 开源代码引用
-- [zizifn/edgetunnel](https://github.com/zizifn/edgetunnel)
-- [3Kmfi6HP/EDtunnel](https://github.com/6Kmfi6HP/EDtunnel)
-- [SHIJS1999/cloudflare-worker-vless-ip](https://github.com/SHIJS1999/cloudflare-worker-vless-ip)
-- [Stanley-baby](https://github.com/Stanley-baby)
-- [ACL4SSR](https://github.com/ACL4SSR/ACL4SSR/tree/master/Clash/config)
-- [股神](https://t.me/CF_NAT/38889)
-- [Workers/Pages Metrics](https://t.me/zhetengsha/3382)
-- [白嫖哥](https://t.me/bestcfipas)
-- [Mingyu](https://github.com/ymyuuu/workers-vless)
-- [ToiCF/CF-Workers-HTTPS](https://github.com/ToiCF/CF-Workers-HTTPS)
-- [ToiCF/CF-Workers-TURN](https://github.com/ToiCF/CF-Workers-TURN)
-- [ToiCF/CF-Workers-SoftEther](https://github.com/ToiCF/CF-Workers-SoftEther)
-- [eooce](https://github.com/eooce/Cloudflare-proxy)
-- [Sukka](https://ip.skk.moe/)
-- [zhangtaile](https://github.com/cmliu/edgetunnel/pull/999)
-- [1345695](https://github.com/1345695/edcloudwasm)
-- [ToiCF/GrainTCP](https://github.com/ToiCF/GrainTCP)
+```text
+.
+├─ README.md
+├─ LICENSE
+├─ package.json
+├─ wrangler.example.toml
+├─ worker.js
+├─ assets/
+│  └─ images/
+├─ data/
+├─ docs/
+│  ├─ AI_MIGRATION_SKILL.md
+│  ├─ MAINTENANCE.md
+│  └─ REPOSITORY_STRUCTURE.md
+├─ local-cfst-dashboard/
+├─ scripts/
+├─ tests/
+└─ .github/workflows/
+```
 
----
+本地额外维护了 `github-release/` 目录，用作 GitHub 发布 staging 文件夹。发布时可以把该目录内容作为仓库根目录提交。
 
-## ⚠️ 免责声明
+## 特别鸣谢
 
-1. 本项目（"edgetunnel"）仅供**教育、科学研究及个人安全测试**之目的。
-2. 使用者在下载或使用本项目代码时，必须严格遵守所在地区的法律法规。
-3. 作者 **cmliu** 对任何滥用本项目代码导致的行为或后果均不承担任何责任。
-4. 本项目不对因使用代码引起的任何直接或间接损害负责。
-5. 建议在测试完成后 24 小时内删除本项目相关部署。
+感谢以下项目提供基础能力、生态参考或实现思路：
 
----
+- [cmliu/edgetunnel](https://github.com/cmliu/edgetunnel)：Cloudflare Worker / EdgeTunnel 核心能力来源。
+- [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo)：Mihomo 内核与 Clash.Meta 生态。
+- [tindy2013/subconverter](https://github.com/tindy2013/subconverter)：订阅转换思路参考。
+- [ACL4SSR](https://github.com/ACL4SSR/ACL4SSR)：Clash 规则组织参考。
+- [gslege/CloudflareIP](https://github.com/gslege/CloudflareIP)：Cloudflare IP 候选来源参考。
 
-**如果您觉得项目对您有帮助，请给一个 Star 🌟，这是对我最大的鼓励！**
+## 开源代码引用
+
+本项目基于 [cmliu/edgetunnel](https://github.com/cmliu/edgetunnel) 修改和扩展。上游项目使用 GPL-2.0 许可证，二次分发时应保留上游许可证、署名和相应开源义务。
+
+主要引用与扩展关系：
+
+| 来源 | 用途 |
+|---|---|
+| `cmliu/edgetunnel` | Worker 核心代理、订阅和管理页面基础。 |
+| `MetaCubeX/mihomo` | Clash/Mihomo 客户端兼容目标。 |
+| `subconverter` | 订阅转换概念参考。 |
+| `ACL4SSR` | Clash 规则配置参考。 |
+| `CloudflareIP` 相关数据源 | Cloudflare IP 候选来源参考。 |

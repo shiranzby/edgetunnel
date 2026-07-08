@@ -1,0 +1,19 @@
+name = "shyvpn-edgetunnel"
+main = "worker.js"
+compatibility_date = "2025-11-04"
+keep_vars = false
+
+[vars]
+UUID = "<YOUR_UUID>"
+ADMIN = "<YOUR_ADMIN_PASSWORD>"
+HOST = "vpn.example.com"
+SUB = "sub.cmliussss.workers.dev"
+CFIP_DATA_URL = "https://test.example.com/api/result"
+CFST_PANEL_URL = "https://test.example.com/"
+DISABLE_LOGIN = "false"
+DEBUG = "false"
+SUBSCRIBE_ORIGIN = "https://vpn.example.com"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "<YOUR_KV_NAMESPACE_ID>"

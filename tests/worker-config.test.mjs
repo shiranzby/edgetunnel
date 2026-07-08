@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const source = await readFile(new URL('../_worker.js', import.meta.url), 'utf8');
+const source = await readFile(new URL('../worker.js', import.meta.url), 'utf8');
 
 const md5md5Start = source.indexOf('async function MD5MD5');
 const md5md5End = source.indexOf('\n}', md5md5Start);
@@ -27,9 +27,9 @@ await writeFile(
 const { workerDefault, generatePreferredIPs } = await import(`file:///${modulePath.replace(/\\/g, '/')}`);
 
 const env = {
-  UUID: 'bd14d931-06ff-4ec6-9f02-33cec5bbb9f0',
-  ADMIN: 'bd14d931-06ff-4ec6-9f02-33cec5bbb9f0',
-  HOST: 'shyvpn.cc.cd',
+  UUID: '11111111-1111-4111-8111-111111111111',
+  ADMIN: '11111111-1111-4111-8111-111111111111',
+  HOST: 'vpn.example.com',
   CFIP_DATA_URL: 'https://example.com/cfip.json',
   KV: {
     store: new Map(),
@@ -42,7 +42,7 @@ const env = {
   },
 };
 
-const request = new Request('https://shyvpn.cc.cd/version?uuid=bd14d931-06ff-4ec6-9f02-33cec5bbb9f0', {
+const request = new Request('https://vpn.example.com/version?uuid=11111111-1111-4111-8111-111111111111', {
   headers: { 'User-Agent': 'Mozilla/5.0' },
 });
 Object.defineProperty(request, 'cf', { value: { colo: 'HKG', asn: 0, asOrganization: 'Test' } });
@@ -85,7 +85,7 @@ rules:
   return new Response('ok', { status: 200 });
 };
 
-const clashRequest = new Request('https://shyvpn.cc.cd/clash', {
+const clashRequest = new Request('https://vpn.example.com/clash', {
   headers: { 'User-Agent': 'Sparkle/1.26 mihomo/1.19.20' },
 });
 Object.defineProperty(clashRequest, 'cf', { value: { colo: 'HKG', asn: 0, asOrganization: 'Test' } });
@@ -107,8 +107,8 @@ assert.match(clashBody, /name: 自动优选\n    type: url-test/);
 assert.doesNotMatch(clashBody, /name: 优选节点/);
 assert.doesNotMatch(clashBody, /美国圣何塞|美国丹佛|日本东京\n/);
 assert.doesNotMatch(clashBody, /🚀 节点选择|🛑 全球拦截|🐟 漏网之鱼/);
-assert.match(clashBody, /DOMAIN-SUFFIX,shyvpn\.cc\.cd,节点选择/);
-assert.match(clashBody, /DOMAIN-SUFFIX,ads\.shyvpn\.cc\.cd,REJECT/);
+assert.match(clashBody, /DOMAIN-SUFFIX,vpn\.example\.com,节点选择/);
+assert.match(clashBody, /DOMAIN-SUFFIX,ads\.vpn\.example\.com,REJECT/);
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input) => {
@@ -125,7 +125,7 @@ globalThis.fetch = async (input) => {
   return new Response('104.16.0.0/30', { status: 200 });
 };
 const [preferredNodes, preferredText] = await generatePreferredIPs(
-  new Request('https://shyvpn.cc.cd/?cnIspCode=cf'),
+  new Request('https://vpn.example.com/?cnIspCode=cf'),
   3,
   443,
   { CFIP_DATA_URL: 'https://example.com/cfip.json' },
@@ -139,5 +139,4 @@ assert.equal(preferredNodes[1], '104.18.1.1:443#联通 | 日本 | 40.00m/s');
 assert.doesNotMatch(preferredText, /CF官方优选/);
 
 console.log('worker config tests passed');
-
 

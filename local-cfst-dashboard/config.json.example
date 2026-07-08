@@ -1,0 +1,46 @@
+{
+  "host": "0.0.0.0",
+  "port": 8789,
+  "intervalMinutes": 30,
+  "concurrency": 40,
+  "traceTimeoutMs": 3500,
+  "downloadTimeoutMs": 10000,
+  "downloadBytes": 524288,
+  "maxCandidates": 260,
+  "maxDownloadTests": 200,
+  "preferredColos": [
+    "HKG",
+    "NRT",
+    "KIX",
+    "ICN",
+    "SIN",
+    "TPE",
+    "LAX",
+    "SJC",
+    "SEA"
+  ],
+  "targetHost": "vpn.example.com",
+  "tracePath": "/cdn-cgi/trace",
+  "downloadHost": "speed.cloudflare.com",
+  "downloadPath": "/__down?bytes=1048576",
+  "candidateSources": [
+    {
+      "name": "v2rayssr",
+      "type": "v2rayssr",
+      "url": "https://v2rayssr.com/cfip/"
+    },
+    {
+      "name": "gslege-country-jsdelivr",
+      "type": "text",
+      "url": "https://cdn.jsdelivr.net/gh/gslege/CloudflareIP@main/country.txt"
+    },
+    {
+      "name": "gslege-country-raw",
+      "type": "text",
+      "url": "https://raw.githubusercontent.com/gslege/CloudflareIP/main/country.txt"
+    }
+  ],
+  "publish": {
+    "targets": []
+  }
+}
