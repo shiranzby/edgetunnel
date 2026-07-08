@@ -333,31 +333,38 @@ KV
 - Surge、Stash、Shadowrocket、Loon、Egern、Quantumult X 等客户端依赖对应订阅格式和转换配置。
 - 旧版 Clash 内核可能不支持 VLESS，建议使用 Mihomo/Clash.Meta 生态内核。
 
-如果你基于本项目创建自己的仓库，可以把上面的 `shiranzby/edgetunnel` 替换为你的仓库地址。
-
 ## 推荐仓库结构
 
 ```text
 .
-├─ README.md
-├─ LICENSE
-├─ package.json
-├─ wrangler.example.toml
-├─ worker.js
-├─ assets/
-│  └─ images/
-├─ data/
-├─ docs/
-│  ├─ AI_MIGRATION_SKILL.md
-│  ├─ MAINTENANCE.md
-│  └─ REPOSITORY_STRUCTURE.md
-├─ local-cfst-dashboard/
-├─ scripts/
-├─ tests/
-└─ .github/workflows/
+├─ README.md                    # 项目首页，说明功能、部署、订阅入口和客户端适配
+├─ LICENSE                      # 开源许可证，保留上游 GPL-2.0 相关义务
+├─ CHANGELOG                    # 上游或项目历史变更记录
+├─ package.json                 # Node/Wrangler 脚本和依赖声明
+├─ wrangler.example.toml        # Cloudflare Workers 部署配置模板，不包含真实密钥
+├─ worker.js                    # Cloudflare Worker 主入口，包含代理、订阅和管理面板逻辑
+├─ assets/                      # README 和文档使用的静态资源
+│  └─ images/                   # 项目说明图、架构图等图片资源
+├─ data/                        # Cloudflare IP 候选数据或脱敏示例数据
+│  └─ cfip.json                 # 默认候选 IP 数据，供订阅生成和测试参考
+├─ docs/                        # 维护与迁移说明
+│  └─ AI_MIGRATION_SKILL.md     # 给 AI/维护者使用的项目迁移、发布和排障指南
+├─ local-cfst-dashboard/        # 本地 Cloudflare IP 测速面板源码
+│  ├─ README.md                 # 本地测速面板使用说明
+│  ├─ config.json.example       # 本地测速面板配置示例
+│  ├─ package.json              # 本地测速面板依赖声明
+│  ├─ server.mjs                # 本地测速面板服务入口
+│  ├─ run.bat                   # Windows 运行脚本
+│  ├─ start.bat                 # Windows 启动脚本
+│  └─ scan-once.bat             # Windows 单次测速脚本
+├─ scripts/                     # 辅助脚本
+│  └─ update-cfip-data.mjs      # 更新 Cloudflare IP 候选数据的脚本
+├─ tests/                       # 回归测试
+│  └─ worker-config.test.mjs    # 校验 Worker 配置、订阅结构和规则输出
+└─ .github/workflows/           # GitHub Actions 自动化
+   ├─ package-worker.yml        # Worker 打包工作流
+   └─ update-cfip.yml           # 候选 IP 数据更新工作流
 ```
-
-本地额外维护了 `github-release/` 目录，用作 GitHub 发布 staging 文件夹。发布时可以把该目录内容作为仓库根目录提交。
 
 ## 特别鸣谢
 
