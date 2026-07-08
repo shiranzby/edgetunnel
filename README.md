@@ -103,7 +103,7 @@ https://vpn.example.com/admin
 
 ## 架构流程
 
-![Client-groups](/assets/images/Architecture.png)
+![Architecture.png](/assets/images/Architecture.png)
 
 ## 快速部署系列
 
