@@ -17,16 +17,16 @@
 ShyVPN EdgeTunnel 做三件事：
 
 1. 把 Cloudflare Worker 部署成 VLESS over WebSocket 代理入口。
-2. 继承上游多客户端订阅能力，并重点优化 Clash/Mihomo/Sparkle 的 `/clash` 使用体验。
-3. 结合 Cloudflare IP 候选数据和本机客户端测速，让用户更容易选择可用入口。
+2. 同时保留 Cloudflare Worker 订阅入口和大陆服务器订阅入口，方便不同网络环境的用户刷新订阅。
+3. 结合 Cloudflare IP 候选数据、服务器测速和客户端本机测速，让用户更容易选择可用入口。
 
 完整链路：
 
 ```text
 本机或服务器测速 Cloudflare IP
   -> 输出 /api/result
-  -> Worker 读取候选数据
-  -> Worker 生成多格式订阅
+  -> Worker 提供 /clash 订阅
+  -> 大陆服务器提供 sub.example.com 自适应订阅
   -> 客户端导入订阅
   -> 用户选择自动测速或指定地区
   -> VLESS over WebSocket 连接 Cloudflare Worker
@@ -44,7 +44,8 @@ ShyVPN EdgeTunnel 做三件事：
 
 ```text
 https://vpn.example.com/admin       # Worker 管理面板
-https://vpn.example.com/clash       # Clash/Mihomo/Sparkle 订阅入口
+https://vpn.example.com/clash       # Cloudflare Worker 订阅入口
+https://sub.example.com/            # 大陆服务器自适应订阅入口
 http://127.0.0.1:8789/              # 本地 Cloudflare IP 测速面板
 http://127.0.0.1:8789/api/result    # 本地候选 IP API
 ```
@@ -54,6 +55,7 @@ http://127.0.0.1:8789/api/result    # 本地候选 IP API
 ```text
 https://test.example.com/
 https://test.example.com/api/result
+https://sub.example.com/
 ```
 
 ## 核心特性
@@ -68,13 +70,14 @@ https://test.example.com/api/result
 
 本项目额外增强：
 
-- `/clash` 订阅入口更清晰，面向 Clash/Mihomo/Sparkle 直接导入。
+- Worker `/clash` 订阅入口更清晰，面向 Clash/Mihomo/Sparkle 直接导入。
+- `local-cfst-dashboard` 可直接生成 Clash、VLESS、Sing-box 订阅，适合通过大陆服务器提供 `sub.example.com` 入口。
 - Worker 内置 Clash YAML 生成兜底，降低外部订阅转换服务异常带来的影响。
 - 新增 `节点选择` 作为第一层总入口，客户端操作逻辑更直观。
 - 自动测速组使用客户端本机 `url-test`，最终选择更贴近用户当前网络。
 - 地区组按国家/地区聚合，减少城市组堆叠和重复节点名。
 - 固定香港候选池作为地区节点兜底，避免测速数据缺失时香港组为空。
-- `local-cfst-dashboard` 提供本地 8789 测速面板和 `/api/result`。
+- `local-cfst-dashboard` 提供本地 8789 测速面板、`/api/result` 和自适应订阅入口。
 - 配套 `wrangler.example.toml`、维护文档、发布目录和 AI Skill 文档，方便迁移与二次维护。
 
 ## 管理面板能力
@@ -260,6 +263,17 @@ id = "<YOUR_KV_NAMESPACE_ID>"
 
 ## 高级使用技巧
 
+### 0. 推荐双订阅入口
+
+建议同时保留两个订阅入口：
+
+```text
+https://vpn.example.com/clash   # Cloudflare Worker 入口
+https://sub.example.com/        # 大陆服务器入口
+```
+
+`https://vpn.example.com/clash` 适合能正常访问 Cloudflare 的用户；`https://sub.example.com/` 适合大陆用户刷新订阅，域名可以通过内网穿透、反向代理或公网服务器指向 `local-cfst-dashboard` 的 `8789` 端口。大陆服务器最好具备可用的外网访问能力，必要时为服务器配置网络代理，否则部分候选源或 GitHub/raw/jsDelivr 数据源可能无法稳定拉取。
+
 ### 1. 使用 Cloudflare IP 候选 API
 
 将本地或服务器测速结果暴露为：
@@ -274,7 +288,7 @@ https://test.example.com/api/result
 CFIP_DATA_URL = "https://test.example.com/api/result"
 ```
 
-Worker 会在生成订阅时读取该数据，并整理为可供客户端使用的节点；其中 Clash/Mihomo 类客户端会从 `/clash` 中获得更清晰的代理组结构。
+Worker 会在生成订阅时读取该数据，并整理为可供客户端使用的节点；其中 Clash/Mihomo 类客户端会从 `/clash` 中获得更清晰的代理组结构。大陆服务器上的 `local-cfst-dashboard` 也可以直接基于测速结果生成 `https://sub.example.com/` 的自适应订阅。
 
 ### 2. 让客户端本机继续测速
 
@@ -298,7 +312,7 @@ Worker 会在生成订阅时读取该数据，并整理为可供客户端使用�
 
 ### 4. 固定 UUID 与订阅入口
 
-设置 `UUID` 可以固定节点 UUID。设置 `ADMIN` 或 `KEY` 可以影响管理入口和订阅 token。公开部署时建议使用随机且不易猜测的值。
+设置 `UUID` 可以固定节点 UUID。设置 `ADMIN` 或 `KEY` 可以影响管理入口和订阅 token。公开部署时建议使用随机且不易猜测的值。订阅入口可以同时保留 `https://vpn.example.com/clash` 和 `https://sub.example.com/`，前者适合 Cloudflare 侧直接访问，后者适合大陆用户刷新订阅。
 
 ### 5. 使用 KV 保存配置
 

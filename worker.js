@@ -493,7 +493,7 @@ export default {
 							订阅内容 = await Singbox订阅配置文件热补丁(订阅内容, config_JSON);
 							responseHeaders["content-type"] = 'application/json; charset=utf-8';
 						} else if (订阅类型 === 'clash') {
-							订阅内容 = await Clash订阅配置文件热补丁(订阅内容, config_JSON);
+							订阅内容 = await Clash订阅配置文件热补丁(订阅内容, config_JSON, env);
 							responseHeaders["content-type"] = 'application/x-yaml; charset=utf-8';
 						}
 						return new Response(订阅内容, { status: 200, headers: responseHeaders });
@@ -4216,7 +4216,7 @@ rules:
 `;
 }
 
-async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}) {
+async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}, env = {}) {
 	const uuid = config_JSON?.UUID || null;
 	const ECH启用 = Boolean(config_JSON?.ECH);
 	const HOSTS = Array.isArray(config_JSON?.HOSTS) ? [...config_JSON.HOSTS] : [];
@@ -4229,7 +4229,7 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 	let clash_yaml = Clash_原始订阅内容.replace(/mode:\s*Rule\b/g, 'mode: rule');
 	if (!(缓存测速节点映射 instanceof Map) || !缓存测速节点映射.size || Date.now() - 缓存测速节点时间 > 120000) {
 		try {
-			const dataURL = 'https://test.example.com/api/result';
+			const dataURL = env.CFIP_DATA_URL || 'https://test.example.com/api/result';
 			const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-Clash-Grouper/1.0' } });
 			if (response.ok) {
 				const payload = await response.json();

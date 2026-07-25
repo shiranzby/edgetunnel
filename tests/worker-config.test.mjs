@@ -54,7 +54,7 @@ assert.deepEqual(await response.json(), { Version: 20260617014121 });
 const originalFetchForClash = globalThis.fetch;
 globalThis.fetch = async (input) => {
   const requestUrl = String(input?.url ?? input);
-  if (requestUrl.includes('/api/result')) {
+  if (requestUrl.includes('/api/result') || requestUrl.includes('cfip.json')) {
     return new Response(JSON.stringify({
       nodes: [
         { ip: '108.162.194.106', regionName: '美国圣何塞', colo: 'SJC' },

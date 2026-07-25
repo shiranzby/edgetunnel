@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "scan": "node server.mjs --scan-once"
+    "scan": "node server.mjs --scan-once",
+    "test": "node tests/subscription.test.mjs"
   }
 }

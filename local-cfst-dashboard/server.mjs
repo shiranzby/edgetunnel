@@ -3,18 +3,24 @@ import https from 'node:https';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
-const dataDir = join(rootDir, 'data');
+const dataDir = process.env.SHYVPN_DATA_DIR || join(rootDir, 'data');
 const resultFile = join(dataDir, 'result.json');
-const config = JSON.parse((await readFile(join(rootDir, 'config.json'), 'utf8')).replace(/^\uFEFF/, ''));
+
+async function readJson(file) {
+  return JSON.parse((await readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
+}
+
+const configFile = join(rootDir, 'config.json');
+const config = await readJson(existsSync(configFile) ? configFile : join(rootDir, 'config.json.example'));
 
 let state = {
   running: false,
   lastRunAt: null,
   lastError: null,
-  result: existsSync(resultFile) ? JSON.parse((await readFile(resultFile, 'utf8')).replace(/^\uFEFF/, '')) : emptyResult(),
+  result: existsSync(resultFile) ? await readJson(resultFile) : emptyResult(),
 };
 
 function emptyResult() {
@@ -74,6 +80,67 @@ const BUILTIN_CANDIDATES = [
   '172.64.153.30:443#hk 中国香港 HKG builtin'
 ];
 
+const FIXED_HK_SUBSCRIPTION_NODES = `
+104.21.88.204:443#多线 | 中国香港 | 0.2m/s
+172.66.0.1:443#多线 | 中国香港 | 0.08m/s
+104.18.38.205:443#多线 | 中国香港 | 0.18m/s
+103.21.244.5:443#多线 | 中国香港 | 0.13m/s
+104.17.186.112:443#多线 | 中国香港 | 1.76m/s
+172.66.0.2:443#多线 | 中国香港 | 0.44m/s
+172.66.0.3:443#多线 | 中国香港 | 0.17m/s
+104.19.153.229:443#多线 | 中国香港 | 0.52m/s
+172.64.158.118:443#多线 | 中国香港 | 0.37m/s
+172.64.145.23:443#电信 | 中国香港 | 0.17m/s
+172.64.146.77:443#多线 | 中国香港 | 0.23m/s
+104.17.114.106:443#移动 | 中国香港 | 0.55m/s
+172.64.229.156:443#多线 | 中国香港 | 0.82m/s
+104.19.42.73:443#移动 | 中国香港 | 1.7m/s
+104.17.156.4:443#移动 | 中国香港 | 0.15m/s
+104.17.152.174:443#移动 | 中国香港 | 1.44m/s
+172.64.154.83:443#多线 | 中国香港 | 1.71m/s
+172.64.146.143:443#电信 | 中国香港 | 0.35m/s
+104.17.178.221:443#多线 | 中国香港 | 0.47m/s
+104.19.32.38:443#移动 | 中国香港 | 0.23m/s
+104.17.187.59:443#移动 | 中国香港 | 0.53m/s
+172.64.229.77:443#多线 | 中国香港 | 0.22m/s
+172.64.159.67:443#多线 | 中国香港 | 0.46m/s
+172.64.229.2:443#多线 | 中国香港 | 0.36m/s
+172.64.229.46:443#多线 | 中国香港 | 0.41m/s
+104.18.38.254:443#多线 | 中国香港 | 0.25m/s
+172.66.0.4:443#多线 | 中国香港 | 0.24m/s
+172.64.158.34:443#电信 | 中国香港 | 1.83m/s
+172.66.0.9:443#多线 | 中国香港 | 0.24m/s
+172.64.229.8:443#多线 | 中国香港 | 1.65m/s
+104.16.244.64:443#移动 | 中国香港 | 0.64m/s
+104.17.118.15:443#多线 | 中国香港 | 0.46m/s
+104.18.39.116:443#多线 | 中国香港 | 0.44m/s
+172.64.154.190:443#多线 | 中国香港 | 0.55m/s
+172.64.153.30:443#多线 | 中国香港 | 0.24m/s
+172.64.229.254:443#多线 | 中国香港 | 0.36m/s
+`.trim().split(/\n+/).map(line => {
+  const [addressPort] = line.trim().split('#');
+  const portIndex = addressPort.lastIndexOf(':');
+  return { server: addressPort.slice(0, portIndex), port: Number(addressPort.slice(portIndex + 1) || 443) };
+});
+
+const REGION_GROUPS = [
+  { key: '中国香港', flag: '🇭🇰', country: '香港', groupName: '🇭🇰 | 香港节点', patterns: [/中国香港|香港|HKG/i] },
+  { key: '日本东京', flag: '🇯🇵', country: '日本', groupName: '🇯🇵 | 日本节点', patterns: [/日本东京|NRT/i] },
+  { key: '日本大阪', flag: '🇯🇵', country: '日本', groupName: '🇯🇵 | 日本节点', patterns: [/日本大阪|KIX/i] },
+  { key: '韩国首尔', flag: '🇰🇷', country: '韩国', groupName: '🇰🇷 | 韩国节点', patterns: [/韩国首尔|ICN/i] },
+  { key: '新加坡', flag: '🇸🇬', country: '新加坡', groupName: '🇸🇬 | 新加坡节点', patterns: [/新加坡|SIN/i] },
+  { key: '中国台湾台北', flag: '🇨🇳', country: '中国台湾', groupName: '🇨🇳 | 台湾节点', patterns: [/中国台湾|台湾|台北|TPE/i] },
+  { key: '美国圣何塞', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国圣何塞|圣何塞|SJC/i] },
+  { key: '美国洛杉矶', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国洛杉矶|洛杉矶|LAX/i] },
+  { key: '美国西雅图', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国西雅图|西雅图|SEA/i] },
+  { key: '美国丹佛', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国丹佛|丹佛|DEN/i] },
+  { key: '美国阿什本', flag: '🇺🇸', country: '美国', groupName: '🇺🇸 | 美国节点', patterns: [/美国阿什本|阿什本|IAD/i] },
+  { key: '德国法兰克福', flag: '🇩🇪', country: '德国', groupName: '🇩🇪 | 德国节点', patterns: [/德国法兰克福|法兰克福|FRA/i] },
+  { key: '荷兰阿姆斯特丹', flag: '🇳🇱', country: '荷兰', groupName: '🇳🇱 | 荷兰节点', patterns: [/荷兰阿姆斯特丹|阿姆斯特丹|AMS/i] },
+];
+
+const COUNTRY_GROUP_ORDER = ['日本', '新加坡', '美国', '德国', '荷兰', '韩国', '中国台湾'];
+
 const COUNTRY_NAMES = {
   HK: '中国香港', TW: '中国台湾', JP: '日本', KR: '韩国', SG: '新加坡', US: '美国', CA: '加拿大', DE: '德国',
   NL: '荷兰', FR: '法国', GB: '英国', UK: '英国', AU: '澳大利亚', CN: '中国'
@@ -111,6 +178,335 @@ function formatSpeed(node) {
 function buildNodeName(node) {
   return `${normalizeLineName(node.line || node.source)} | ${regionNameFrom(node)} | ${formatSpeed(node)}`;
 }
+
+function yamlString(value) {
+  return JSON.stringify(String(value ?? ''));
+}
+
+function normalizeHost(value) {
+  return String(value || '').trim().replace(/^https?:\/\//i, '').split('/')[0].split(':')[0].toLowerCase();
+}
+
+function normalizePath(value) {
+  const text = String(value || '/').trim() || '/';
+  return text.startsWith('/') ? text : `/${text}`;
+}
+
+function resolveSubscriptionConfig(overrides = {}) {
+  const source = { ...(config.subscription || {}), ...overrides };
+  const workerHost = normalizeHost(source.workerHost || source.host || process.env.SHYVPN_WORKER_HOST || config.targetHost);
+  const hosts = Array.isArray(source.hosts) && source.hosts.length ? source.hosts.map(normalizeHost).filter(Boolean) : [workerHost];
+  return {
+    enabled: source.enabled !== false,
+    name: source.name || 'ShyVPN',
+    uuid: String(process.env.SHYVPN_UUID || source.uuid || '').trim(),
+    workerHost,
+    hosts: hosts.length ? hosts : [workerHost],
+    path: normalizePath(source.path || '/'),
+    transport: String(source.transport || 'ws').toLowerCase(),
+    grpcServiceName: source.grpcServiceName || 'gun',
+    fingerprint: source.fingerprint || 'chrome',
+    skipCertVerify: Boolean(source.skipCertVerify),
+    updateIntervalHours: Number(source.updateIntervalHours || 3),
+    maxNodes: Math.max(1, Number(source.maxNodes || 180)),
+    token: String(process.env.SHYVPN_SUB_TOKEN || source.token || '').trim(),
+  };
+}
+
+function normalizeSubscriptionNodes(result, subConfig) {
+  const used = new Set();
+  const nodes = Array.isArray(result?.nodes) ? result.nodes : [];
+  return nodes
+    .filter(node => node?.ip && !String(node.ip).includes(':') && node.ok !== false)
+    .map((node, index) => {
+      const host = subConfig.hosts[index % subConfig.hosts.length] || subConfig.workerHost;
+      const lineName = normalizeLineName(node.lineName || node.line || node.source);
+      const regionName = regionNameFrom(node);
+      const speedText = formatSpeed(node);
+      let name = `${lineName} | ${regionName} | ${speedText}`;
+      if (used.has(name)) name = `${name} | ${index + 1}`;
+      used.add(name);
+      return {
+        name,
+        server: String(node.ip),
+        port: Number(node.port || 443),
+        host,
+        regionName,
+        lineName,
+      };
+    })
+    .slice(0, subConfig.maxNodes);
+}
+
+function proxyTransportFields(node, subConfig) {
+  if (subConfig.transport === 'grpc') {
+    return `network: grpc, grpc-opts: {grpc-service-name: ${yamlString(subConfig.grpcServiceName)}}`;
+  }
+  return `network: ws, ws-opts: {path: ${yamlString(subConfig.path)}, headers: {Host: ${yamlString(node.host)}}}`;
+}
+
+function matchRegionGroup(text = '') {
+  return REGION_GROUPS.find(meta => meta.patterns.some(pattern => pattern.test(text))) || {
+    key: '其他地区',
+    flag: '🌐',
+    country: '其他',
+    groupName: '🌐 | 其他节点',
+  };
+}
+
+function numberedNodeName(meta, index) {
+  return `${meta.flag} | ${meta.country}节点 | ${String(index).padStart(2, '0')}`;
+}
+
+function buildClashProxyLine(node, subConfig) {
+  return `  - {name: ${yamlString(node.name)}, server: ${node.server}, port: ${node.port}, type: vless, uuid: ${yamlString(subConfig.uuid)}, tls: true, udp: true, skip-cert-verify: ${subConfig.skipCertVerify}, servername: ${yamlString(node.host)}, client-fingerprint: ${yamlString(subConfig.fingerprint)}, ${proxyTransportFields(node, subConfig)}}`;
+}
+
+function withUniqueNames(nodes) {
+  const seen = new Set();
+  return nodes.filter(node => {
+    if (!node?.name || seen.has(node.name)) return false;
+    seen.add(node.name);
+    return true;
+  });
+}
+
+function listGroupItems(names) {
+  return names.length ? names.map(name => `      - ${yamlString(name)}`).join('\n') : '      - DIRECT';
+}
+
+function buildSelectItems(nodes, includeHead = true) {
+  const names = withUniqueNames(nodes).map(node => node.name);
+  return listGroupItems([...(includeHead ? ['故障切换', 'DIRECT'] : []), ...names]);
+}
+
+function buildTestItems(nodes) {
+  return listGroupItems(withUniqueNames(nodes).map(node => node.name));
+}
+
+function buildGroupedClashNodes(nodes, subConfig) {
+  const countryCounts = new Map([['香港', FIXED_HK_SUBSCRIPTION_NODES.length]]);
+  const dynamicNodes = nodes.map((node, index) => {
+    const meta = matchRegionGroup(`${node.regionName || ''} ${node.region || ''} ${node.colo || ''} ${node.name || ''}`);
+    const nextIndex = (countryCounts.get(meta.country) || 0) + 1;
+    countryCounts.set(meta.country, nextIndex);
+    return { ...node, name: numberedNodeName(meta, nextIndex), region: meta.key, country: meta.country, groupName: meta.groupName, order: index };
+  });
+
+  const hkMeta = REGION_GROUPS[0];
+  const fixedHongKongNodes = FIXED_HK_SUBSCRIPTION_NODES.map((item, index) => ({
+    name: `🇭🇰 | 中国香港 | ${String(index + 1).padStart(2, '0')}`,
+    server: item.server,
+    port: item.port,
+    host: subConfig.hosts[index % subConfig.hosts.length] || subConfig.workerHost,
+    region: hkMeta.key,
+    country: hkMeta.country,
+    groupName: hkMeta.groupName,
+    fixed: true,
+  }));
+
+  const countryNodeMap = new Map();
+  const countryRegionCounts = new Map();
+  const countryOverflowNodes = [];
+  for (const node of dynamicNodes) {
+    if (node.country === '香港') continue;
+    const regionKey = `${node.country}:${node.region}`;
+    const regionCount = countryRegionCounts.get(regionKey) || 0;
+    if (regionCount >= 20) {
+      countryOverflowNodes.push(node);
+      continue;
+    }
+    countryRegionCounts.set(regionKey, regionCount + 1);
+    if (!countryNodeMap.has(node.country)) countryNodeMap.set(node.country, []);
+    countryNodeMap.get(node.country).push(node);
+  }
+
+  const globalNodes = [];
+  const globalCountryCounts = new Map();
+  for (const node of dynamicNodes) {
+    const count = globalCountryCounts.get(node.country) || 0;
+    if (count >= 2) continue;
+    globalNodes.push(node);
+    globalCountryCounts.set(node.country, count + 1);
+  }
+
+  const coreNames = new Set([...globalNodes, ...[...countryNodeMap.values()].flat()].map(node => node.name));
+  const backupNodes = [...countryOverflowNodes, ...dynamicNodes.filter(node => !coreNames.has(node.name))];
+  const autoTestLimits = new Map([
+    ['日本', 20],
+    ['新加坡', 20],
+    ['美国', 20],
+    ['德国', 10],
+    ['荷兰', 10],
+    ['韩国', 10],
+    ['中国台湾', 10],
+  ]);
+  const autoTestNodes = [
+    ...fixedHongKongNodes,
+    ...COUNTRY_GROUP_ORDER.flatMap(country => (countryNodeMap.get(country) || []).slice(0, autoTestLimits.get(country) || 10)),
+  ];
+
+  return {
+    allNodes: [...fixedHongKongNodes, ...dynamicNodes],
+    fixedHongKongNodes,
+    countryNodeMap,
+    globalNodes,
+    backupNodes,
+    autoTestNodes,
+  };
+}
+
+function buildClashSubscription(nodes, subConfig) {
+  const grouped = buildGroupedClashNodes(nodes, subConfig);
+  const nodeLines = grouped.allNodes.map(node => buildClashProxyLine(node, subConfig));
+  const countryGroupBlocks = COUNTRY_GROUP_ORDER
+    .filter(country => grouped.countryNodeMap.has(country))
+    .map(country => {
+      const countryNodes = grouped.countryNodeMap.get(country);
+      const groupName = countryNodes[0]?.groupName || `${country}节点`;
+      return `  - name: ${groupName}
+    type: select
+    proxies:
+${buildSelectItems(countryNodes)}`;
+    }).join('\n');
+  const countryGroupNames = COUNTRY_GROUP_ORDER
+    .filter(country => grouped.countryNodeMap.has(country))
+    .map(country => grouped.countryNodeMap.get(country)[0]?.groupName || `${country}节点`);
+  return `mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+dns:
+  enable: true
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://sm2.doh.pub/dns-query
+  fallback:
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+proxies:
+${nodeLines.join('\n')}
+proxy-groups:
+  - name: 节点选择
+    type: select
+    proxies:
+      - 自动优选
+      - 故障切换
+      - 全球节点
+      - 🇭🇰 | 香港节点
+${countryGroupNames.map(name => `      - ${name}`).join('\n')}${countryGroupNames.length ? '\n' : ''}      - 备用节点
+      - DIRECT
+  - name: 自动优选
+    type: url-test
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 30
+    proxies:
+${buildTestItems(grouped.autoTestNodes)}
+  - name: 全球节点
+    type: select
+    proxies:
+      - 自动优选
+      - 故障切换
+      - DIRECT
+${listGroupItems(grouped.globalNodes.map(node => node.name))}
+  - name: 🇭🇰 | 香港节点
+    type: select
+    proxies:
+${buildSelectItems(grouped.fixedHongKongNodes)}
+${countryGroupBlocks ? countryGroupBlocks + '\n' : ''}  - name: 备用节点
+    type: select
+    proxies:
+${buildSelectItems(grouped.backupNodes)}
+  - name: 故障切换
+    type: fallback
+    url: http://www.gstatic.com/generate_204
+    interval: 180
+    proxies:
+${buildTestItems(grouped.globalNodes.length ? grouped.globalNodes : grouped.autoTestNodes)}
+rules:
+  - DOMAIN-SUFFIX,${subConfig.workerHost},节点选择
+  - MATCH,节点选择
+`;
+}
+
+function buildVlessLinks(nodes, subConfig) {
+  return nodes.map(node => {
+    const params = new URLSearchParams({
+      security: 'tls',
+      type: subConfig.transport === 'grpc' ? 'grpc' : 'ws',
+      fp: subConfig.fingerprint,
+      sni: node.host,
+      encryption: 'none',
+    });
+    if (subConfig.transport === 'grpc') params.set('serviceName', subConfig.grpcServiceName);
+    else {
+      params.set('host', node.host);
+      params.set('path', subConfig.path);
+    }
+    return `vless://${subConfig.uuid}@${node.server}:${node.port}?${params.toString()}#${encodeURIComponent(node.name)}`;
+  }).join('\n') + '\n';
+}
+
+function singBoxTransport(node, subConfig) {
+  if (subConfig.transport === 'grpc') return { type: 'grpc', service_name: subConfig.grpcServiceName };
+  return { type: 'ws', path: subConfig.path, headers: { Host: node.host } };
+}
+
+function buildSingBoxSubscription(nodes, subConfig) {
+  return JSON.stringify({
+    log: { level: 'info' },
+    dns: { servers: [{ tag: 'cn', address: 'https://dns.alidns.com/dns-query' }] },
+    outbounds: [
+      ...nodes.map(node => ({
+        type: 'vless',
+        tag: node.name,
+        server: node.server,
+        server_port: node.port,
+        uuid: subConfig.uuid,
+        tls: { enabled: true, server_name: node.host, insecure: subConfig.skipCertVerify, utls: { enabled: true, fingerprint: subConfig.fingerprint } },
+        transport: singBoxTransport(node, subConfig),
+      })),
+      { type: 'selector', tag: '节点选择', outbounds: nodes.map(node => node.name), default: nodes[0]?.name },
+      { type: 'urltest', tag: '自动优选', outbounds: nodes.map(node => node.name), url: 'http://www.gstatic.com/generate_204', interval: '5m' },
+      { type: 'direct', tag: 'direct' },
+    ],
+    route: { final: '节点选择' },
+  }, null, 2) + '\n';
+}
+
+function detectSubscriptionFormat(url, userAgent = '') {
+  const pathname = url.pathname.toLowerCase();
+  const target = String(url.searchParams.get('target') || '').toLowerCase();
+  const ua = String(userAgent || '').toLowerCase();
+  if (pathname.includes('clash') || target.includes('clash') || target.includes('mihomo') || ua.includes('clash') || ua.includes('mihomo') || ua.includes('meta')) return 'clash';
+  if (pathname.includes('sing') || target.includes('sing') || ua.includes('sing-box') || ua.includes('singbox')) return 'singbox';
+  return 'vless';
+}
+
+function isSubscriptionHost(hostHeader = '') {
+  const host = normalizeHost(hostHeader);
+  return host === 'sub.shyvpn.cc.cd' || host.startsWith('sub.');
+}
+
+export function buildLocalSubscription({ format = 'vless', result = state.result, subscription = {} } = {}) {
+  const subConfig = resolveSubscriptionConfig(subscription);
+  if (!subConfig.enabled) throw new Error('subscription is disabled');
+  if (!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(subConfig.uuid)) throw new Error('missing or invalid subscription.uuid');
+  if (!subConfig.workerHost) throw new Error('missing subscription.workerHost or targetHost');
+  const nodes = normalizeSubscriptionNodes(result, subConfig);
+  if (!nodes.length) throw new Error('no available nodes in result.json');
+  if (format === 'clash') return { body: buildClashSubscription(nodes, subConfig), contentType: 'application/x-yaml; charset=utf-8', subConfig, nodes };
+  if (format === 'singbox') return { body: buildSingBoxSubscription(nodes, subConfig), contentType: 'application/json; charset=utf-8', subConfig, nodes };
+  return { body: buildVlessLinks(nodes, subConfig), contentType: 'text/plain; charset=utf-8', subConfig, nodes };
+}
+
 function parseTrace(text) {
   const data = {};
   for (const line of String(text || '').split(/\r?\n/)) {
@@ -518,6 +914,29 @@ function textResponse(response, text, contentType = 'text/plain; charset=utf-8')
   response.end(text);
 }
 
+function subscriptionResponse(request, response) {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const subConfig = resolveSubscriptionConfig();
+  if (subConfig.token) {
+    const token = url.searchParams.get('token') || request.headers.authorization?.replace(/^Bearer\s+/i, '') || '';
+    if (token !== subConfig.token) {
+      response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+      response.end('Forbidden');
+      return;
+    }
+  }
+  const format = detectSubscriptionFormat(url, request.headers['user-agent'] || '');
+  const { body, contentType } = buildLocalSubscription({ format });
+  response.writeHead(200, {
+    'content-type': contentType,
+    'cache-control': 'no-store',
+    'access-control-allow-origin': '*',
+    'profile-update-interval': String(subConfig.updateIntervalHours),
+    'content-disposition': `attachment; filename*=utf-8''${encodeURIComponent(subConfig.name)}`,
+  });
+  response.end(body);
+}
+
 function htmlPage() {
   return `<!doctype html>
 <html lang="zh-CN" data-theme="dark">
@@ -583,13 +1002,17 @@ function htmlPage() {
 </html>`;
 }
 
-async function handleRequest(request, response) {
+export async function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host}`);
+  if (url.pathname === '/' && isSubscriptionHost(request.headers.host)) return subscriptionResponse(request, response);
   if (url.pathname === '/') return textResponse(response, htmlPage(), 'text/html; charset=utf-8');
   if (url.pathname === '/api/status') return jsonResponse(response, { running: state.running, lastRunAt: state.lastRunAt, lastError: state.lastError });
   if (url.pathname === '/api/result') return jsonResponse(response, state.result);
   if (url.pathname === '/api/csv') return textResponse(response, toCsv(state.result), 'text/csv; charset=utf-8');
   if (url.pathname === '/api/plain') return textResponse(response, state.result.nodes.map(node => `${node.ip}:443#${node.name}`).join('\n') + '\n');
+  if (url.pathname === '/clash' || url.pathname === '/sub') return subscriptionResponse(request, response);
+  if (url.pathname === '/singbox') return subscriptionResponse(request, response);
+  if (url.pathname === '/api/sub' || url.pathname.startsWith('/api/sub/')) return subscriptionResponse(request, response);
   if (url.pathname === '/api/scan' && request.method === 'POST') {
     runScan().catch(error => console.error(error));
     return jsonResponse(response, { ok: true, running: true });
@@ -598,24 +1021,29 @@ async function handleRequest(request, response) {
   response.end('Not Found');
 }
 
-if (process.argv.includes('--scan-once')) {
-  const result = await runScan();
-  console.log(`Scan complete: ${result.count} nodes, ${result.generatedAt}`);
-  process.exit(0);
+async function startServer() {
+  if (process.argv.includes('--scan-once')) {
+    const result = await runScan();
+    console.log(`Scan complete: ${result.count} nodes, ${result.generatedAt}`);
+    process.exit(0);
+  }
+
+  const server = http.createServer((request, response) => {
+    handleRequest(request, response).catch(error => {
+      console.error(error);
+      jsonResponse(response, { error: error.message }, 500);
+    });
+  });
+
+  await mkdir(dataDir, { recursive: true });
+  server.listen(config.port, config.host, () => {
+    console.log(`ShyVPN CFST dashboard: http://127.0.0.1:${config.port}`);
+    console.log(`Listening on ${config.host}:${config.port}, interval ${config.intervalMinutes} minutes`);
+  });
+
+  setInterval(() => runScan().catch(error => console.error(error)), config.intervalMinutes * 60 * 1000);
+  runScan().catch(error => console.error(error));
 }
 
-const server = http.createServer((request, response) => {
-  handleRequest(request, response).catch(error => {
-    console.error(error);
-    jsonResponse(response, { error: error.message }, 500);
-  });
-});
-
-await mkdir(dataDir, { recursive: true });
-server.listen(config.port, config.host, () => {
-  console.log(`ShyVPN CFST dashboard: http://127.0.0.1:${config.port}`);
-  console.log(`Listening on ${config.host}:${config.port}, interval ${config.intervalMinutes} minutes`);
-});
-
-setInterval(() => runScan().catch(error => console.error(error)), config.intervalMinutes * 60 * 1000);
-runScan().catch(error => console.error(error));
+const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+if (isMain) await startServer();
