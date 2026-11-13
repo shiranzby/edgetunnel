@@ -3,7 +3,7 @@ name: Update CFIP data
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 */6 * * *'
+    - cron: '17 * * * *'
 
 permissions:
   contents: write
@@ -22,4 +22,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'chore: update cfip data'
-          file_pattern: data/cfip.json
+          file_pattern: data/**

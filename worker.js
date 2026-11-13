@@ -3,6 +3,7 @@ let config_JSON, 反代IP = '', 启用SOCKS5反代 = null, 启用SOCKS5全局反
 let 缓存SOCKS5白名单 = null, 缓存反代IP, 缓存反代解析数组, 缓存反代数组索引 = 0, 启用反代兜底 = true, 调试日志打印 = false;
 let SOCKS5白名单 = ['*tapecontent.net', '*cloudatacdn.com', '*loadshare.org', '*cdn-centaurus.com', 'scholar.google.com'];
 let 缓存测速节点映射 = new Map(), 缓存测速节点时间 = 0;
+let 缓存CFIP数据 = null, 缓存CFIP数据时间 = 0;
 const Pages静态页面 = 'https://edt-pages.github.io';
 ///////////////////////////////////////////////////////全局常量和工具函数///////////////////////////////////////////////
 const WS早期数据最大字节 = 8 * 1024, WS早期数据最大头长度 = Math.ceil(WS早期数据最大字节 * 4 / 3) + 4;
@@ -293,6 +294,13 @@ export default {
 						return new Response(本地优选IP, { status: 200, headers: { 'Content-Type': 'text/plain;charset=utf-8', 'asn': request.cf.asn } });
 					} else if (访问路径 === 'admin/cf.json') {// CF配置文件
 						return new Response(JSON.stringify(request.cf, null, 2), { status: 200, headers: { 'Content-Type': 'application/json;charset=utf-8' } });
+					} else if (访问路径 === 'admin/cfip.json') {// 公开优选结果归档
+						try {
+							const payload = await 读取CFIP数据(env, true);
+							return new Response(JSON.stringify(payload), { status: 200, headers: { 'Content-Type': 'application/json;charset=utf-8', 'Cache-Control': 'no-store' } });
+						} catch (error) {
+							return new Response(JSON.stringify({ error: '优选数据暂不可用', detail: error.message }), { status: 502, headers: { 'Content-Type': 'application/json;charset=utf-8', 'Cache-Control': 'no-store' } });
+						}
 					}
 
 					ctx.waitUntil(请求日志记录(env, request, 访问IP, 'Admin_Login', config_JSON));
@@ -452,7 +460,8 @@ export default {
 									return `${协议类型}://${btoa(config_JSON.SS.加密方式 + ':00000000-0000-4000-8000-000000000000')}@${节点地址}:${节点端口}?plugin=v2${encodeURIComponent('ray-plugin;mode=websocket;host=example.com;path=' + (config_JSON.随机路径 ? 随机路径(完整节点路径) : 完整节点路径) + (config_JSON.SS.TLS ? ';tls' : '')) + ECHLINK参数 + TLS分片参数}#${encodeURIComponent(节点备注)}`;
 								} else {
 									const 传输路径参数值 = 获取传输路径参数值(config_JSON, 完整节点路径, 作为优选订阅生成器);
-									return `${协议类型}://00000000-0000-4000-8000-000000000000@${节点地址}:${节点端口}?security=tls&type=${传输协议 + ECHLINK参数}&${域名字段名}=example.com&fp=${config_JSON.Fingerprint}&sni=example.com&${路径字段名}=${encodeURIComponent(传输路径参数值) + TLS分片参数}&encryption=none#${encodeURIComponent(节点备注)}`;
+									const 订阅SNI = env.PROXY_SNI || config_JSON.PROXY_SNI || (config_JSON.HOST === 'shyvpn.cc.cd' ? 'nps.shw.de5.net' : 'example.com');
+									return `${协议类型}://00000000-0000-4000-8000-000000000000@${节点地址}:${节点端口}?security=tls&type=${传输协议 + ECHLINK参数}&${域名字段名}=example.com&fp=${config_JSON.Fingerprint}&sni=${订阅SNI}&${路径字段名}=${encodeURIComponent(传输路径参数值) + TLS分片参数}&encryption=none#${encodeURIComponent(节点备注)}`;
 								}
 							}).filter(item => item !== null).join('\n');
 						} else { // 订阅转换
@@ -4183,6 +4192,7 @@ function log(...args) {
 
 async function 生成内置Clash订阅配置(request, config_JSON = {}, env = {}) {
 	const host = config_JSON.HOST || new URL(request.url).host;
+	const sni = env.PROXY_SNI || config_JSON.PROXY_SNI || (host === 'shyvpn.cc.cd' ? 'nps.shw.de5.net' : host);
 	const uuid = config_JSON.UUID || '00000000-0000-4000-8000-000000000000';
 	const 本地IP库 = config_JSON.优选订阅生成?.本地IP库 || {};
 	const 优选列表 = 本地IP库.随机IP
@@ -4200,7 +4210,7 @@ async function 生成内置Clash订阅配置(request, config_JSON = {}, env = {}
 		const name = match[3] || server;
 		节点.push({
 			name,
-			text: `  - {name: ${JSON.stringify(name)}, server: ${server}, port: ${Number(match[2] || 443)}, type: vless, uuid: ${uuid}, tls: true, skip-cert-verify: ${Boolean(config_JSON.跳过证书验证)}, servername: ${host}, client-fingerprint: ${config_JSON.Fingerprint || 'chrome'}, network: ${传输协议}, ${路径字段名}: ${JSON.stringify(节点路径)}, ${域名字段名}: ${host}}`
+			text: `  - {name: ${JSON.stringify(name)}, server: ${server}, port: ${Number(match[2] || 443)}, type: vless, uuid: ${uuid}, tls: true, skip-cert-verify: ${Boolean(config_JSON.跳过证书验证)}, servername: ${sni}, client-fingerprint: ${config_JSON.Fingerprint || 'chrome'}, network: ${传输协议}, ${路径字段名}: ${JSON.stringify(节点路径)}, ${域名字段名}: ${host}}`
 		});
 	}
 	return `proxies:
@@ -4229,14 +4239,20 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 	let clash_yaml = Clash_原始订阅内容.replace(/mode:\s*Rule\b/g, 'mode: rule');
 	if (!(缓存测速节点映射 instanceof Map) || !缓存测速节点映射.size || Date.now() - 缓存测速节点时间 > 120000) {
 		try {
-			const dataURL = env.CFIP_DATA_URL || 'https://test.example.com/api/result';
-			const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-Clash-Grouper/1.0' } });
-			if (response.ok) {
-				const payload = await response.json();
-				const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
-				缓存测速节点映射 = new Map(nodes.filter(node => node?.ip).map(node => [String(node.ip), node]));
-				缓存测速节点时间 = Date.now();
+			const payload = await 读取CFIP数据(env);
+			const nodes = Array.isArray(payload?.clientNodes) && payload.clientNodes.length
+				? payload.clientNodes
+				: (Array.isArray(payload?.nodes) ? payload.nodes : []);
+			const nodeMap = new Map();
+			for (const node of nodes) {
+				if (!node?.ip) continue;
+				const key = String(node.ip);
+				const items = nodeMap.get(key) || [];
+				items.push(node);
+				nodeMap.set(key, items);
 			}
+			缓存测速节点映射 = nodeMap;
+			缓存测速节点时间 = Date.now();
 		} catch { }
 	}
 
@@ -4448,7 +4464,21 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 	const 匹配地区 = (name = '') => 地区元信息.find(meta => meta.patterns.some(pattern => pattern.test(name))) || { key: '其他地区', flag: '🌐', country: '其他', groupName: '🌐 | 其他节点', patterns: [] };
 	const 按IP匹配地区 = (server, fallbackName = '') => {
 		const info = 缓存测速节点映射 instanceof Map ? 缓存测速节点映射.get(String(server || '')) : null;
-		return 匹配地区([info?.regionName, info?.colo, fallbackName].filter(Boolean).join(' '));
+		const infos = Array.isArray(info) ? info : (info ? [info] : []);
+		return 匹配地区([
+			fallbackName,
+			...infos.flatMap(item => [item?.regionName, item?.displayRegion, item?.country, item?.colo]),
+		].filter(Boolean).join(' '));
+	};
+	const 按IP匹配运营商 = (server, fallbackName = '') => {
+		const info = 缓存测速节点映射 instanceof Map ? 缓存测速节点映射.get(String(server || '')) : null;
+		const infos = Array.isArray(info) ? info : (info ? [info] : []);
+		const text = [fallbackName, ...infos.flatMap(item => [item?.ispName, item?.isp, item?.lineName, item?.line])].filter(Boolean).join(' ');
+		if (/移动|cmcc|chinamobile|mobile/i.test(text)) return '移动';
+		if (/电信|telecom|chinanet|\bct\b/i.test(text)) return '电信';
+		if (/联通|unicom|china169|\bcu\b/i.test(text)) return '联通';
+		if (/多线|multi|all|national|全国|综合/i.test(text)) return '多线';
+		return '其他';
 	};
 	const 提取字段 = (text, field) => {
 		const match = text.match(new RegExp(`\\b${field}:\\s*("([^"]*)"|'([^']*)'|([^,}\\n]+))`));
@@ -4509,10 +4539,11 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 		const 动态国家计数 = new Map([['香港', 固定香港优选节点.length]]);
 		const 动态节点 = 原始节点.map((node, index) => {
 			const meta = 按IP匹配地区(node.server, node.name);
+			const isp = 按IP匹配运营商(node.server, node.name);
 			const nextIndex = (动态国家计数.get(meta.country) || 0) + 1;
 			动态国家计数.set(meta.country, nextIndex);
 			const newName = 生成序号名称(meta, nextIndex);
-			return { ...node, text: 替换字段(node.text, 'name', newName), name: newName, region: meta.key, country: meta.country, groupName: meta.groupName, order: index };
+			return { ...node, text: 替换字段(node.text, 'name', newName), name: newName, region: meta.key, country: meta.country, groupName: meta.groupName, isp, order: index };
 		});
 		const 香港Meta = 地区元信息[0];
 		const 固定香港节点 = 固定香港优选节点.map((item, index) => {
@@ -4549,6 +4580,19 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 			if (!国家节点Map.has(node.country)) 国家节点Map.set(node.country, []);
 			国家节点Map.get(node.country).push(node);
 		}
+		const 运营商组信息 = {
+			'移动': '📱 | 移动节点',
+			'电信': '☎️ | 电信节点',
+			'联通': '🔗 | 联通节点',
+			'多线': '🌐 | 多线节点',
+			'其他': '📦 | 其他节点',
+		};
+		const 运营商节点Map = new Map();
+		for (const node of 动态节点) {
+			const key = 运营商组信息[node.isp] ? node.isp : '其他';
+			if (!运营商节点Map.has(key)) 运营商节点Map.set(key, []);
+			运营商节点Map.get(key).push(node);
+		}
 		const 已入核心 = new Set([...全球节点, ...[...国家节点Map.values()].flat()].map(node => node.name));
 		const 备用节点 = [...国家溢出节点, ...动态节点.filter(node => !已入核心.has(node.name))];
 		const listLines = (names) => names.length ? names.map(name => `      - ${YAML字符串(name)}`).join('\n') : '      - DIRECT';
@@ -4576,6 +4620,12 @@ async function Clash订阅配置文件热补丁(Clash_原始订阅内容, config
 			...固定香港节点,
 			...国家分组顺序.flatMap(country => (国家节点Map.get(country) || []).slice(0, 自动优选国家上限.get(country) || 10)),
 		];
+		const 运营商组块 = ['移动', '电信', '联通', '多线', '其他']
+			.filter(isp => 运营商节点Map.has(isp))
+			.map(isp => `  - name: ${运营商组信息[isp]}
+    type: select
+    proxies:
+${selectLines(运营商节点Map.get(isp))}`).join('\n');
 		const proxiesBlock = `proxies:\n${全部节点.map(node => node.text).join('\n')}\n`;
 		yaml = yaml.replace(/^proxies:\s*\n[\s\S]*?(?=^proxy-groups:\s*$)/m, proxiesBlock);
 		const 国家组块 = 国家分组顺序
@@ -4596,7 +4646,7 @@ ${selectLines(nodes)}`;
       - 故障切换
       - 全球节点
       - 🇭🇰 | 香港节点
-${国家组块 ? 国家分组顺序.filter(country => 国家节点Map.has(country)).map(country => `      - ${国家节点Map.get(country)[0]?.groupName || `${country}节点`}`).join('\n') + '\n' : ''}      - 备用节点
+${运营商组块 ? ['移动', '电信', '联通', '多线', '其他'].filter(isp => 运营商节点Map.has(isp)).map(isp => `      - ${运营商组信息[isp]}`).join('\n') + '\n' : ''}${国家组块 ? 国家分组顺序.filter(country => 国家节点Map.has(country)).map(country => `      - ${国家节点Map.get(country)[0]?.groupName || `${country}节点`}`).join('\n') + '\n' : ''}      - 备用节点
       - DIRECT
   - name: 自动优选
     type: url-test
@@ -4620,7 +4670,7 @@ ${国家组块 ? 国家组块 + '\n' : ''}  - name: 备用节点
     type: select
     proxies:
 ${selectLines(备用节点)}
-  - name: 故障切换
+${运营商组块 ? 运营商组块 + '\n' : ''}  - name: 故障切换
     type: fallback
     url: http://www.gstatic.com/generate_204
     interval: 180
@@ -5494,9 +5544,10 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 	const ECHLINK参数 = config_JSON.ECH ? `&ech=${encodeURIComponent((config_JSON.ECHConfig.SNI ? config_JSON.ECHConfig.SNI + '+' : '') + config_JSON.ECHConfig.DNS)}` : '';
 	const { type: 传输协议, 路径字段名, 域名字段名 } = 获取传输协议配置(config_JSON);
 	const 传输路径参数值 = 获取传输路径参数值(config_JSON, config_JSON.完整节点路径);
+	const 订阅SNI = env.PROXY_SNI || config_JSON.PROXY_SNI || (host === 'shyvpn.cc.cd' ? 'nps.shw.de5.net' : host);
 	config_JSON.LINK = config_JSON.协议类型 === 'ss'
 		? `${config_JSON.协议类型}://${btoa(config_JSON.SS.加密方式 + ':' + userID)}@${host}:${config_JSON.SS.TLS ? '443' : '80'}?plugin=v2${encodeURIComponent(`ray-plugin;mode=websocket;host=${host};path=${((config_JSON.完整节点路径.includes('?') ? config_JSON.完整节点路径.replace('?', '?enc=' + config_JSON.SS.加密方式 + '&') : (config_JSON.完整节点路径 + '?enc=' + config_JSON.SS.加密方式)) + (config_JSON.SS.TLS ? ';tls' : ''))};mux=0`) + ECHLINK参数}#${encodeURIComponent(config_JSON.优选订阅生成.SUBNAME)}`
-		: `${config_JSON.协议类型}://${userID}@${host}:443?security=tls&type=${传输协议 + ECHLINK参数}&${域名字段名}=${host}&fp=${config_JSON.Fingerprint}&sni=${host}&${路径字段名}=${encodeURIComponent(传输路径参数值) + TLS分片参数}&encryption=none#${encodeURIComponent(config_JSON.优选订阅生成.SUBNAME)}`;
+		: `${config_JSON.协议类型}://${userID}@${host}:443?security=tls&type=${传输协议 + ECHLINK参数}&${域名字段名}=${host}&fp=${config_JSON.Fingerprint}&sni=${订阅SNI}&${路径字段名}=${encodeURIComponent(传输路径参数值) + TLS分片参数}&encryption=none#${encodeURIComponent(config_JSON.优选订阅生成.SUBNAME)}`;
 	config_JSON.优选订阅生成.TOKEN = await MD5MD5(hostname + userID);
 
 	const 初始化TG_JSON = { BotToken: null, ChatID: null };
@@ -5578,14 +5629,26 @@ function 识别运营商(request) {
 	return 命中运营商 || ASN运营商映射[String(cf?.asn || '')] || 'cf';
 }
 
+async function 读取CFIP数据(env = {}, force = false) {
+	const dataURL = env.CFIP_DATA_URL || 'https://test.example.com/api/result';
+	if (!force && 缓存CFIP数据 && Date.now() - 缓存CFIP数据时间 < 120000 && 缓存CFIP数据.url === dataURL) return 缓存CFIP数据.payload;
+	const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-CFIP-Loader/2.0' } });
+	if (!response.ok) throw new Error(`优选数据请求失败: HTTP ${response.status}`);
+	const payload = await response.json();
+	if (!payload || typeof payload !== 'object') throw new Error('优选数据格式无效');
+	缓存CFIP数据 = { url: dataURL, payload };
+	缓存CFIP数据时间 = Date.now();
+	return payload;
+}
+
 async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) {
 	const url = new URL(request.url);
 	const 查询参数运营商 = String(url.searchParams.get('cnIspCode') || '').toLowerCase();
 	const 运营商文件标识 = ['ct', 'cu', 'cmcc', 'cf'].includes(查询参数运营商) ? 查询参数运营商 : 识别运营商(request);
 	const 格式化优选节点名称 = (node, index) => {
-		const line = String(node.line || '').trim();
-		const country = String(node.country || node.displayRegion || '').trim();
-		const speed = String(node.speed || '').trim();
+		const line = String(node.lineName || node.line || node.ispName || '多线').trim();
+		const country = String(node.regionName || node.country || node.displayRegion || node.colo || '').trim();
+		const speed = String(node.speedText || node.speed || node.sourceSpeedText || node.latency || '').trim();
 		const parts = [line, country, speed].filter(Boolean);
 		return parts.length ? parts.join(' | ') : `优选节点${index + 1}`;
 	};
@@ -5599,21 +5662,29 @@ async function 生成随机IP(request, count = 16, 指定端口 = -1, env = {}) 
 		}
 	};
 	const 读取测速优选IP = async () => {
-		const dataURL = env.CFIP_DATA_URL || 'https://test.example.com/api/result';
 		try {
-			const response = await fetch(dataURL, { headers: { 'User-Agent': 'ShyVPN-CFIP-Loader/1.0' } });
-			if (!response.ok) return [];
-			const payload = await response.json();
-			const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
-			缓存测速节点映射 = new Map(nodes.filter(node => node?.ip).map(node => [String(node.ip), node]));
+			const payload = await 读取CFIP数据(env);
+			const nodes = Array.isArray(payload?.clientNodes) && payload.clientNodes.length
+				? payload.clientNodes
+				: (Array.isArray(payload?.nodes) ? payload.nodes : []);
+			const nodeMap = new Map();
+			for (const node of nodes) {
+				if (!node?.ip) continue;
+				const key = String(node.ip);
+				const items = nodeMap.get(key) || [];
+				items.push(node);
+				nodeMap.set(key, items);
+			}
+			缓存测速节点映射 = nodeMap;
 			缓存测速节点时间 = Date.now();
 			const limit = Math.max(nodes.length, Number(count) || 16, 260);
 			return nodes
-				.filter(node => node && node.ip && !String(node.ip).includes(':'))
+				.filter(node => node && node.ip)
 				.slice(0, limit)
 				.map((node, index) => {
 					const port = 指定端口 === -1 ? (node.port || 443) : 指定端口;
-					return `${node.ip}:${port}#${格式化优选节点名称(node, index)}`;
+					const server = String(node.ip).includes(':') ? `[${node.ip}]` : node.ip;
+					return `${server}:${port}#${格式化优选节点名称(node, index)}`;
 				});
 		} catch {
 			return [];
@@ -6244,6 +6315,123 @@ async function ShyVPN页面增强(response, env = {}) {
 	const panelURL = env.CFST_PANEL_URL || 'https://test.example.com/';
 	const buttonHTML = `<a id="shyvpn-cfst-link" href="${panelURL}" target="_blank" rel="noopener noreferrer" style="position:fixed;right:24px;bottom:24px;z-index:999999;padding:12px 16px;border-radius:999px;background:linear-gradient(135deg,#06b6d4,#2563eb);color:#fff;font:700 14px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-decoration:none;box-shadow:0 12px 35px rgba(37,99,235,.38);border:1px solid rgba(255,255,255,.25);">⚡ 优选测速面板</a>`;
 	if (!html.includes('shyvpn-cfst-link')) html = html.includes('</body>') ? html.replace('</body>', buttonHTML + '</body>') : html + buttonHTML;
+	const resultsPanel = String.raw`
+<section id="shyvpn-cfip-results" style="margin:28px auto 96px;max-width:1440px;padding:22px;background:#fff;border:1px solid #dfe3e8;border-radius:14px;box-shadow:0 8px 30px rgba(15,23,42,.08);font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#17202a;">
+  <div style="display:flex;gap:12px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0;font-size:20px;line-height:1.35;">CF 优选结果</h2>
+      <p id="shyvpn-cfip-meta" style="margin:6px 0 0;color:#667085;font-size:13px;">正在读取合并数据……</p>
+    </div>
+    <button id="shyvpn-cfip-refresh" type="button" style="min-height:40px;padding:0 14px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#17202a;cursor:pointer;">刷新表格</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 12px;">
+    <input id="shyvpn-cfip-search" placeholder="搜索 IP、地区、来源" style="height:38px;min-width:240px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;">
+    <select id="shyvpn-cfip-line" style="height:38px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;"><option value="">全部运营商</option><option>移动</option><option>电信</option><option>联通</option><option>多线</option><option>其他</option></select>
+    <select id="shyvpn-cfip-family" style="height:38px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;"><option value="">IPv4 + IPv6</option><option value="4">IPv4</option><option value="6">IPv6</option></select>
+    <select id="shyvpn-cfip-state" style="height:38px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;"><option value="">全部状态</option><option value="yes">可用于订阅</option><option value="no">测试未通过或未发布</option></select>
+  </div>
+  <div style="overflow:auto;border:1px solid #e5e7eb;border-radius:10px;">
+    <table style="width:100%;border-collapse:collapse;min-width:940px;font-size:13px;">
+      <thead style="background:#f8fafc;color:#475467;"><tr>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">#</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">IP:端口</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">运营商</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">地区 / 节点</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">延迟</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">下载速度</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">状态</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">来源</th>
+        <th style="padding:10px;text-align:left;border-bottom:1px solid #e5e7eb;">更新时间</th>
+      </tr></thead>
+      <tbody id="shyvpn-cfip-body"><tr><td colspan="9" style="padding:18px;color:#667085;">正在读取……</td></tr></tbody>
+    </table>
+  </div>
+</section>
+<style>
+#shyvpn-cfip-results th,#shyvpn-cfip-results td{white-space:nowrap}
+#shyvpn-cfip-results tbody tr:hover{background:#f8fafc}
+#shyvpn-cfip-results .cfip-ok{color:#067647;font-weight:600}
+#shyvpn-cfip-results .cfip-warn{color:#b54708}
+#shyvpn-cfip-results .cfip-muted{color:#667085}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('shyvpn-cfip-results');
+  if (!root || root.dataset.ready) return;
+  root.dataset.ready = '1';
+  const meta = document.getElementById('shyvpn-cfip-meta');
+  const body = document.getElementById('shyvpn-cfip-body');
+  const search = document.getElementById('shyvpn-cfip-search');
+  const line = document.getElementById('shyvpn-cfip-line');
+  const family = document.getElementById('shyvpn-cfip-family');
+  const state = document.getElementById('shyvpn-cfip-state');
+  let rows = [];
+  const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const ispOf = item => {
+    const text = [item.ispName, item.isp, item.lineName, item.line].filter(Boolean).join(' ');
+    if (/移动|cmcc|mobile/i.test(text)) return '移动';
+    if (/电信|telecom|chinanet|\bct\b/i.test(text)) return '电信';
+    if (/联通|unicom|china169|\bcu\b/i.test(text)) return '联通';
+    if (/多线|multi|all|national|全国|综合/i.test(text)) return '多线';
+    return '其他';
+  };
+  const speedOf = item => item.speedText || item.speed || item.sourceSpeedText || (Number.isFinite(Number(item.downloadMbps)) ? Number(item.downloadMbps).toFixed(2) + ' Mbps' : '—');
+  const latencyOf = item => item.latency || (Number.isFinite(Number(item.latencyMs)) ? Number(item.latencyMs) + 'ms' : '—');
+  const usableOf = item => item.published === true || item.downloadStatus === 200;
+  const render = () => {
+    const q = search.value.trim().toLowerCase();
+    const lineValue = line.value;
+    const familyValue = family.value;
+    const stateValue = state.value;
+    const visible = rows.filter(item => {
+      const text = [item.ip, item.port, item.regionName, item.displayRegion, item.colo, item.sourceName, item.source, item.line, item.lineName].filter(Boolean).join(' ').toLowerCase();
+      if (q && !text.includes(q)) return false;
+      if (lineValue && ispOf(item) !== lineValue) return false;
+      if (familyValue && String(item.family || (String(item.ip || '').includes(':') ? 6 : 4)) !== familyValue) return false;
+      if (stateValue === 'yes' && !usableOf(item)) return false;
+      if (stateValue === 'no' && usableOf(item)) return false;
+      return true;
+    });
+    meta.textContent = '共 ' + rows.length + ' 条记录，当前显示 ' + visible.length + ' 条；可用于订阅的节点由已发布且有成功测试结果的记录组成。';
+    body.innerHTML = visible.length ? visible.map((item, index) => {
+      const usable = usableOf(item);
+      const tested = item.ok === true || item.downloadStatus != null || item.measurementKind;
+      const status = usable ? '可用于订阅' : (tested ? '仅记录 / 测试未通过' : '未发布');
+      const statusClass = usable ? 'cfip-ok' : (tested ? 'cfip-warn' : 'cfip-muted');
+      const ip = String(item.ip || '');
+      const endpoint = ip.includes(':') ? '[' + ip + ']:' + (item.port || 443) : ip + ':' + (item.port || 443);
+      const updated = item.sourceUpdated || item.updatedAt || '';
+      return '<tr><td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + (index + 1) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;">' + esc(endpoint) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(ispOf(item)) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(item.regionName || item.displayRegion || item.colo || '其他') + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(latencyOf(item)) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(speedOf(item)) + '</td>' +
+        '<td class="' + statusClass + '" style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(status) + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(item.sourceName || item.source || '—') + '</td>' +
+        '<td style="padding:9px 10px;border-bottom:1px solid #f0f2f5;">' + esc(updated ? new Date(updated).toLocaleString() : '—') + '</td></tr>';
+    }).join('') : '<tr><td colspan="9" style="padding:18px;color:#667085;">没有匹配结果</td></tr>';
+  };
+  const load = async () => {
+    meta.textContent = '正在读取合并数据……';
+    try {
+      const response = await fetch('/admin/cfip.json', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const payload = await response.json();
+      rows = Array.isArray(payload.records) ? payload.records.slice() : [];
+      rows.sort((a, b) => Number(usableOf(b)) - Number(usableOf(a)) || String(a.ip || '').localeCompare(String(b.ip || '')));
+      render();
+    } catch (error) {
+      meta.textContent = '优选数据读取失败：' + error.message;
+      body.innerHTML = '<tr><td colspan="9" style="padding:18px;color:#b42318;">请确认 CFIP_DATA_URL 已指向合并数据文件。</td></tr>';
+    }
+  };
+  [search, line, family, state].forEach(input => input.addEventListener('input', render));
+  document.getElementById('shyvpn-cfip-refresh').addEventListener('click', load);
+  load();
+})();
+</script>`;
+	if (!html.includes('shyvpn-cfip-results')) html = html.includes('</body>') ? html.replace('</body>', resultsPanel + '</body>') : html + resultsPanel;
 	const headers = new Headers(response.headers);
 	headers.set('Content-Type', 'text/html; charset=UTF-8');
 	headers.set('Cache-Control', 'no-store');

@@ -20,11 +20,11 @@ const sanitizedSource = source
 const modulePath = join(tmpdir(), `shycfvpn-worker-${Date.now()}.mjs`);
 await writeFile(
   modulePath,
-  `${sanitizedSource}\nexport { workerDefault, 生成随机IP as generatePreferredIPs };\n`,
+  `${sanitizedSource}\nexport { workerDefault, 生成随机IP as generatePreferredIPs, MD5MD5 };\n`,
   'utf8',
 );
 
-const { workerDefault, generatePreferredIPs } = await import(`file:///${modulePath.replace(/\\/g, '/')}`);
+const { workerDefault, generatePreferredIPs, MD5MD5 } = await import(`file:///${modulePath.replace(/\\/g, '/')}`);
 
 const env = {
   UUID: '11111111-1111-4111-8111-111111111111',
@@ -101,6 +101,8 @@ assert.match(clashBody, /name: 自动优选/);
 assert.match(clashBody, /name: 🇭🇰 \| 香港节点/);
 assert.match(clashBody, /name: 🇯🇵 \| 日本节点/);
 assert.match(clashBody, /name: 🇺🇸 \| 美国节点/);
+assert.match(clashBody, /name: ☎️ \| 电信节点/);
+assert.match(clashBody, /name: 🔗 \| 联通节点/);
 assert.match(clashBody, /name: 故障切换/);
 assert.match(clashBody, /name: 节点选择\n    type: select/);
 assert.match(clashBody, /name: 自动优选\n    type: url-test/);
@@ -113,12 +115,13 @@ assert.match(clashBody, /DOMAIN-SUFFIX,ads\.vpn\.example\.com,REJECT/);
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input) => {
   const requestUrl = String(input?.url ?? input);
-  if (requestUrl.includes('cfip.json')) {
+  if (requestUrl.includes('cfip.json') || requestUrl.includes('generate-cfip')) {
     return new Response(JSON.stringify({
       nodes: [
         { line: '电信', country: '美国', speed: '63.59m/s', ip: '108.162.194.106', port: 443 },
         { line: '联通', country: '日本', speed: '40.00m/s', ip: '104.18.1.1', port: 443 },
         { line: '移动', country: '新加坡', speed: '30.00m/s', ip: '104.18.1.2', port: 443 },
+        { line: '多线', country: '中国香港', speed: '1.20m/s', ip: '2606:4700::1111', port: 443 },
       ],
     }), { status: 200 });
   }
@@ -126,17 +129,33 @@ globalThis.fetch = async (input) => {
 };
 const [preferredNodes, preferredText] = await generatePreferredIPs(
   new Request('https://vpn.example.com/?cnIspCode=cf'),
-  3,
+  4,
   443,
-  { CFIP_DATA_URL: 'https://example.com/cfip.json' },
+  { CFIP_DATA_URL: 'https://example.com/generate-cfip.json' },
 );
-globalThis.fetch = originalFetch;
-
-assert.equal(preferredNodes.length, 3);
+assert.equal(preferredNodes.length, 4);
 assert.equal(preferredText, preferredNodes.join('\n'));
 assert.equal(preferredNodes[0], '108.162.194.106:443#电信 | 美国 | 63.59m/s');
 assert.equal(preferredNodes[1], '104.18.1.1:443#联通 | 日本 | 40.00m/s');
+assert.equal(preferredNodes[3], '[2606:4700::1111]:443#多线 | 中国香港 | 1.20m/s');
 assert.doesNotMatch(preferredText, /CF官方优选/);
+
+const mixedToken = await MD5MD5('shyvpn.cc.cd' + env.UUID);
+const mixedRequest = new Request(`https://shyvpn.cc.cd/sub?token=${mixedToken}`, {
+  headers: { 'User-Agent': 'Mozilla/5.0' },
+});
+Object.defineProperty(mixedRequest, 'cf', { value: { colo: 'HKG', asn: 0, asOrganization: 'Test' } });
+const mixedResponse = await workerDefault.fetch(mixedRequest, {
+  ...env,
+  HOST: 'shyvpn.cc.cd',
+  PROXY_SNI: 'nps.shw.de5.net',
+}, { waitUntil() {} });
+const mixedBody = await mixedResponse.text();
+assert.equal(mixedResponse.status, 200);
+assert.match(mixedBody, /sni=nps\.shw\.de5\.net/);
+assert.match(mixedBody, /host=shyvpn\.cc\.cd/);
+
+globalThis.fetch = originalFetch;
 
 console.log('worker config tests passed');
 

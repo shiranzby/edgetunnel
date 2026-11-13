@@ -229,7 +229,7 @@ UUID = "<YOUR_UUID>"
 ADMIN = "<YOUR_ADMIN_PASSWORD>"
 HOST = "vpn.example.com"
 SUB = "sub.cmliussss.workers.dev"
-CFIP_DATA_URL = "https://test.example.com/api/result"
+CFIP_DATA_URL = "https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip.json"
 CFST_PANEL_URL = "https://test.example.com/"
 DISABLE_LOGIN = "false"
 DEBUG = "false"
@@ -249,8 +249,9 @@ id = "<YOUR_KV_NAMESPACE_ID>"
 | `HOST` | 是 | `vpn.example.com` | Worker 自定义域名。 |
 | `KV` | 是 | `KV` binding | Cloudflare KV namespace 绑定。 |
 | `SUB` | 否 | `sub.cmliussss.workers.dev` | 外部订阅转换服务 host。 |
-| `CFIP_DATA_URL` | 否 | `https://test.example.com/api/result` | Cloudflare IP 候选数据 API。 |
-| `CFST_PANEL_URL` | 否 | `https://test.example.com/` | 测速面板地址。 |
+| `CFIP_DATA_URL` | 否 | `https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip.json` | 当前测速快照、微测网三网与 cfhub 全部分类合并结果，保留来源和各线路测量值；不连接天翼云电脑。 |
+| `PROXY_SNI` | 否 | `nps.shw.de5.net`（`HOST=shyvpn.cc.cd` 时内置同一默认值） | TLS 使用的 SNI；HTTP Host 仍使用 `HOST`。物理中国移动 IPv4 对 `shyvpn.cc.cd` 的 TLS 会重置，已验证备用 SNI 可完成网页和 16 KiB 下载。 |
+| `CFST_PANEL_URL` | 否 | `https://test.example.com/` | 兼容保留的测速面板链接；管理页会直接显示合并后的优选结果表格。 |
 | `SUBSCRIBE_ORIGIN` | 否 | `https://vpn.example.com` | 订阅入口规范 origin。 |
 | `DISABLE_LOGIN` | 否 | `false` | 是否关闭管理页登录。 |
 | `DEBUG` | 否 | `false` | 调试日志开关。 |
@@ -260,6 +261,17 @@ id = "<YOUR_KV_NAMESPACE_ID>"
 | `URL` | 否 | `https://example.com` | 伪装页或回落页面。 |
 
 更多上游变量可参考 [cmliu/edgetunnel](https://github.com/cmliu/edgetunnel) 的环境变量说明。本项目新增重点是 `CFIP_DATA_URL` 和 `CFST_PANEL_URL`。
+
+仓库同时生成一行一个地址的纯文本列表，含全集和三网分类：
+
+```text
+https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip-all.txt
+https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip-mobile.txt
+https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip-telecom.txt
+https://raw.githubusercontent.com/shiranzby/edgetunnel/main/data/cfip-unicom.txt
+```
+
+完整字段、IPv4/IPv6 列表、来源快照和去重方式见 [公开源说明](docs/PUBLIC_CFIP_SOURCES.md)。全集中的 IPv6 写为 `[IPv6]:443`；Worker 订阅读取 `clientNodes`，可生成 IPv4 和 IPv6 节点。管理页通过 `/admin/cfip.json` 直接读取同一份合并数据。
 
 ## 高级使用技巧
 
@@ -300,9 +312,14 @@ Worker 会在生成订阅时读取该数据，并整理为可供客户端使用�
 
 ```text
 节点选择 -> 自动优选
-节点选择 -> 香港节点
+  节点选择 -> 🇭🇰 | 香港节点
 节点选择 -> 日本节点
 节点选择 -> 新加坡节点
+  节点选择 -> 📱 | 移动节点
+  节点选择 -> ☎️ | 电信节点
+  节点选择 -> 🔗 | 联通节点
+
+当前 Worker 会把 `PROXY_SNI` 写入 VLESS 的 `sni/servername`，同时保留 `HOST` 作为 WebSocket Host。这样“优选 IP 测速成功”与“移动线路可以建立代理业务”被分开处理：公开源和保存快照只负责候选池，网页和小文件业务验证才用于确认入口策略。
 节点选择 -> 美国节点
 节点选择 -> 故障切换
 节点选择 -> DIRECT
